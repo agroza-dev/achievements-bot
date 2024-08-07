@@ -1,11 +1,11 @@
-import logging
+from achievements_bot.services.logger import logger
 
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
-    filters,
+    filters, MessageReactionHandler,
 )
 
 from achievements_bot import config, handlers
@@ -16,23 +16,21 @@ COMMAND_HANDLERS = {
     "help": handlers.help_,
 }
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-if not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_TARGET_CHANNEL_ID:
+if not config.BOT_TOKEN or not config.TARGET_CHANNEL_ID:
     raise ValueError(
-        "TELEGRAM_BOT_TOKEN and TELEGRAM_TARGET_CHANNEL_ID should be initialized in config.py"
+        "BOT_TOKEN and TARGET_CHANNEL_ID should be initialized in config.py"
     )
 
 
 def main():
-    application = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
+    logger.info('Bot started')
+    application = ApplicationBuilder().token(config.BOT_TOKEN).build()
 
     for command_name, command_handler in COMMAND_HANDLERS.items():
         application.add_handler(CommandHandler(command_name, command_handler))
 
+    application.add_handler(MessageHandler(filters.ALL, handlers.all_messages))
+    logger.info('Handlers enabled')
     application.run_polling()
 
 

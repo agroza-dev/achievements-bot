@@ -1,10 +1,38 @@
 import asyncio
+from contextlib import asynccontextmanager
 from collections.abc import Iterable
 from typing import Any, AnyStr
 
 import aiosqlite
 
 from achievements_bot import config
+from achievements_bot.services.logger import logger
+
+
+class DatabaseException(Exception):
+    """Исключение, возникающее при ошибке выполнения SQL-запроса."""
+    def __init__(self, message: str, sql: AnyStr, params: Iterable[Any] | None):
+        super().__init__(message)
+        self.sql = sql
+        self.params = params
+
+    def __str__(self):
+        return f"{super().__str__()} | SQL: {self.sql} | Params: {self.params}"
+
+
+@asynccontextmanager
+async def in_savepoint():
+    try:
+        await execute('begin')  # Начало транзакции
+        yield  # Здесь выполняется блок кода внутри транзакции
+        await execute('commit')  # Коммит транзакции
+    except Exception as e:
+        await execute('rollback')  # Откат транзакции в случае ошибки
+        # Если это DatabaseExecutionError, райзим его дальше
+        if isinstance(e, DatabaseException):
+            raise e
+        else:
+            raise DatabaseException("Ошибка в транзакции", "BEGIN/COMMIT", None) from e
 
 
 async def get_db() -> aiosqlite.Connection:
@@ -45,7 +73,10 @@ async def execute(
 ) -> None:
     db = await get_db()
     args: tuple[AnyStr, Iterable[Any] | None] = (sql, params)
-    await db.execute(*args)
+    try:
+        await db.execute(*args)
+    except Exception as e:
+        raise DatabaseException('Ошибка выполнения SQL-запроса!', sql, params) from e
     if autocommit:
         await db.commit()
 
@@ -74,3 +105,4 @@ def _get_result_with_column_names(cursor: aiosqlite.Cursor, row: aiosqlite.Row) 
     for index, column_name in enumerate(column_names):
         resulting_row[column_name] = row[index]
     return resulting_row
+

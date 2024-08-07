@@ -9,3 +9,4 @@ db.sqlite3
 .ruff_cache
 config.py
 poetry.lock
+var/logs/*.log*
