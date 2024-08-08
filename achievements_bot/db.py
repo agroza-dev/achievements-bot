@@ -6,7 +6,6 @@ from typing import Any, AnyStr
 import aiosqlite
 
 from achievements_bot import config
-from achievements_bot.services.logger import logger
 
 
 class DatabaseException(Exception):
@@ -83,6 +82,19 @@ async def execute(
 
 def close_db() -> None:
     asyncio.run(_async_close_db())
+
+
+def close_async_db() -> None:
+    """
+    Это нужно для миграций, так как мы запускаем миграции через asyncio,
+    нужно в этом же потоке и закрывать подключение
+    """
+    if asyncio.get_running_loop():
+        # Если уже есть активный цикл, просто вызываем асинхронную функцию
+        asyncio.create_task(_async_close_db())
+    else:
+        # Иначе запускаем новый цикл
+        asyncio.run(_async_close_db())
 
 
 async def _async_close_db() -> None:
