@@ -1,0 +1,11 @@
+<b>Статистика по всем:</b>
+<br>
+<br>
+{% if users %}
+{% for user in users %}
+   @{{ user.name }}:   <b>{{ user.points_rate }}</b>
+<br>
+{% endfor %}
+{% else %}
+    <b>Нет данных</b>
+{% endif %}

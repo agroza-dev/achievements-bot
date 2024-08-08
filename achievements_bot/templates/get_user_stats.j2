@@ -1,0 +1,11 @@
+<b>Статистика для @{{ user.name}}:</b>
+<br>
+<br>
+{% if history %}
+    {% for item in history %}
+       @{{ item.appreciated_user }}:   <b>{{ item.points }}</b>
+    <br>
+{% endfor %}
+{% else %}
+    <b>Нет данных </b>
+{% endif %}

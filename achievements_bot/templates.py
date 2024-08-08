@@ -30,3 +30,4 @@ def _get_template_env():
         _get_template_env.template_env = env
 
     return _get_template_env.template_env
+

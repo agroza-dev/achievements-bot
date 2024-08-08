@@ -8,8 +8,6 @@ from achievements_bot.services.logger import logger
 
 
 async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(update)
-    print(update.message_reaction)
     message = update.message
     logger.info('Получено сообщение:')
     logger.info(message)
@@ -28,11 +26,11 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rater_user = await user.get_user(message.from_user)
         logger.info(f"Это ответ на сообщение от {rater_user.name} на сообщение от {appreciated_user.name}")
 
-        if appreciated_user == config.BOT_NAME:
+        if appreciated_user.name == config.BOT_NAME:
             logger.info('Ответ на сообщение бота...')
             return None
         if rater_user == appreciated_user:
-            logger.info('Ответ самому себе...')
+            await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=ReactionEmoji.REVERSED_HAND_WITH_MIDDLE_FINGER_EXTENDED)
             return None
 
         status, points = points_rate.classify_message(message.text)

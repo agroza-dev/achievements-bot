@@ -14,10 +14,12 @@ EFFECTIVE_STATUSES = [POSITIVE, NEGATIVE]
 def classify_message(text):
     positive_patterns = [
         r'\bлови\b', r'\bполучай\b', r'\bэтому господину\b', r'\bэтому товарищу\b',
-        r'\bдаю\b', r'\bна\b', r'\bдержи\b', r'\bвот тебе\b'
+        r'\bдаю\b', r'\bна\b', r'\bдержи\b', r'\bвот тебе\b', r'\bплюс\b', r'\bувеличиваем социальный рейтинг\b',
+        r'\bувеличить социальный рейтинг\b',
     ]
     negative_patterns = [
-        r'\bминус\b', r'\bотобрать\b', r'\bзабрать\b', r'\bотнять\b'
+        r'\bминус\b', r'\bотобрать\b', r'\bзабрать\b', r'\bотнять\b', r'\bуменьшаем социальный рейтинг\b',
+        r'\bуменьшить социальный рейтинг\b',
     ]
     points = 0
     command_type = ERROR
@@ -47,6 +49,8 @@ def classify_message(text):
     # Специальная проверка для чисел с плюсом или минусом
     if re.search(r'^\+(\s+)?\d+', text):
         command_type = POSITIVE
+    elif re.search(r'^-\d+', text):
+        command_type = NEGATIVE
     elif re.search(r'^-(\s+)?\d+', text):
         command_type = NEGATIVE
 
@@ -92,7 +96,7 @@ async def take_points(appreciated: UserEntity, rater: UserEntity, points: int, m
                 {
                     "appreciated_user": appreciated.id,
                     "rated_user": rater.id,
-                    "points": -points,
+                    "points": points,
                     "message": message_id,
                 },
                 autocommit=False,

@@ -14,6 +14,8 @@ from achievements_bot.db import close_db
 COMMAND_HANDLERS = {
     "start": handlers.start,
     "help": handlers.help_,
+    "get_stats": handlers.get_stats,
+    "get_my_stats": handlers.get_user_stats,
 }
 
 if not config.BOT_TOKEN or not config.TARGET_CHANNEL_ID:
