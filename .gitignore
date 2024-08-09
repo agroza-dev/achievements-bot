@@ -10,3 +10,4 @@ db.sqlite3
 config.py
 poetry.lock
 var/logs/*.log*
+/var/db_prod.sqlite3
