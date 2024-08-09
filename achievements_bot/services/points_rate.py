@@ -101,7 +101,7 @@ async def take_points(appreciated: UserEntity, rater: UserEntity, points: int, m
                 },
                 autocommit=False,
             )
-            await update_points_total(appreciated, appreciated.points_rate - points)
+            await update_points_total(appreciated, appreciated.points_rate - abs(points))
         logger.info(f'Успешно отняли {points} у {appreciated} от {rater} за {message_id}')
         return True
     except Exception as e:
