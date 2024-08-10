@@ -47,11 +47,9 @@ def classify_message(text):
             break
 
     # Специальная проверка для чисел с плюсом или минусом
-    if re.search(r'^\+(\s+)?\d+', text):
+    if re.search(r"\+\s*\d+", text):
         command_type = POSITIVE
-    elif re.search(r'^-\d+', text):
-        command_type = NEGATIVE
-    elif re.search(r'^-(\s+)?\d+', text):
+    elif re.search(r"-\s*\d+", text):
         command_type = NEGATIVE
 
     return command_type, points

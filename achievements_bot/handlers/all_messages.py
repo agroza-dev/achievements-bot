@@ -14,12 +14,12 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if message.sticker:
         logger.info(f"Это стикер от {update.message.from_user}")
-        await send_response(update, context, 'Это стикер!')
+        # await send_response(update, context, 'Это стикер!')
     elif message.forward_origin:
         logger.info(f"Это репост от {update.message.from_user}")
-        await send_response(update, context, 'Это репост!')
+        # await send_response(update, context, 'Это репост!')
     elif update.message_reaction:
-        logger.info(f"Это реакция на сообщение {update.message.from_user}")
+        # logger.info(f"Это реакция на сообщение {update.message.from_user}")
         await send_response(update, context, 'Это репост!')
     elif message.text and message.reply_to_message:
         appreciated_user = await user.get_user(message.reply_to_message.from_user)
@@ -30,7 +30,6 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info('Ответ на сообщение бота...')
             return None
         if rater_user == appreciated_user:
-            await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=ReactionEmoji.REVERSED_HAND_WITH_MIDDLE_FINGER_EXTENDED)
             return None
 
         status, points = points_rate.classify_message(message.text)
