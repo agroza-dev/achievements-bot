@@ -1,28 +1,28 @@
-from achievements_bot.services import points_rate
+from achievements_bot.services.points_rate import Triggers, classify_message
 from achievements_bot.services.cls import Color
 
 positive = [
     "Лови 100 очков",
+    "просто так лови 500 очков",
+    "за изобретательность лови + 500 баллов",
+
+    "+500 этому господину",
+    "+1 этому господину",
+    "годится, +190 этому господину за старания",
+
+    "+500 этому товарищу",
+    "+1 этому товарищу",
+    "1 этому товарищу",
+    "годится, 190 этому господину за старания",
+    "годится, плюс 190 тебе",
+
     "+555",
     "+100 очков",
     "+ 101 очков",
-    "даю 101",
-    "даю 101 очков",
-    "получай 100 очков",
-    "получай обратно свои 100 очков",
-    "лови обратно свои 10 очков",
     "50 очков этому господину",
     "50 очков этому товарищу",
     "21 очков этому товарищу",
-    "на 10",
-    "на 10 очков",
-    "держи 10",
-    "держи 10 очков",
-    "вот тебе 10 ",
-    "вот тебе 10 очков",
     "плюс 10 очков",
-    "увеличить социальный рейтинг на 100",
-    "увеличиваем социальный рейтинг на 100",
 ]
 negative = [
     "- 100 очков",
@@ -31,53 +31,55 @@ negative = [
     "-101 очков",
     "-123 очка",
     "минус 123 очка",
-    "отобрать 100 очков",
-    "отнять 100 ",
-    "отнять 100 очков",
+    "отбираю 100 очков",
+    "отнимаю 100 ",
     "минус 5 очков",
-    "минус 3 очка",
     "минус 21 очко",
-    "уменьшаем социальный рейтинг на 100",
-    "уменьшить социальный рейтинг на 100",
+    "увеличить социальный рейтинг на -500 ????",
 ]
 error = [
+    "лови обратно свои 10 очков",
+    "отобрать 100 очков",
+    "я бы дал по морде этому товарищу",
+    "отнять 100 ",
+    "отнять 100 очков",
+    "за изобретательность лови гору из 500 точеных пик",
+    "даю 101 очков",
+    "получай 100 очков",
+    "получай обратно свои 100 очков",
+    "на 10",
+    "на 10 очков",
+    "держи 10",
+    "держи 10 очков",
+    "вот тебе 10 ",
+    "вот тебе 10 очков",
     "я бы не от дал бы за это и 100 рублей",
     "+- за 100 рублей я бы взял",
     "получай по морде",
     "ловите наркомана",
     "иди в очко",
     "ну и очко",
+    "5000 миллионов",
     "100 раз уже такое видел",
+    "15 минут пинаешь так хуй, говоришь, что устал и идешь на перекур еще на 15. Ммм, мечта а не работники)",
+    "уменьшаем социальный рейтинг на 100",
+    "уменьшить социальный рейтинг на 100",
+    "увеличить социальный рейтинг на 100",
+    "увеличиваем социальный рейтинг на 100",
 ]
 
 
 def test():
-    for message in positive:
-        command_type, points = points_rate.classify_message(message)
-        if command_type == 'positive':
-            print(
-                f"'{message}' => {Color.GREEN}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
-        else:
-            print(
-                f"'{message}' => {Color.RED}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
-
-    for message in negative:
-        command_type, points = points_rate.classify_message(message)
-        if command_type == 'negative':
-            print(
-                f"'{message}' => {Color.GREEN}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
-        else:
-            print(
-                f"'{message}' => {Color.RED}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
-
-    for message in error:
-        command_type, points = points_rate.classify_message(message)
-        if command_type == 'error':
-            print(
-                f"'{message}' => {Color.GREEN}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
-        else:
-            print(
-                f"'{message}' => {Color.RED}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
+    cases_dict = {Triggers.POSITIVE: positive, Triggers.NEGATIVE: negative, Triggers.ERROR: error}
+    for case in cases_dict:
+        for message in cases_dict[case]:
+            command_type, points, pattern = classify_message(message)
+            if command_type == case:
+                print(
+                    f"'{message}' => '{pattern}' => {Color.GREEN}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
+            else:
+                print(
+                    f"'{message}' => '{pattern}' => {Color.RED}{command_type}{Color.END} => {Color.BLUE}{points}{Color.END}")
 
 
 if __name__ == "__main__":

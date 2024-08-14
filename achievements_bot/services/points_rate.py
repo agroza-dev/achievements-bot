@@ -4,55 +4,60 @@ from achievements_bot.db import execute, in_savepoint
 from achievements_bot.services.logger import logger
 from achievements_bot.services.user import UserEntity, update_points_total
 
-POSITIVE = 'positive'
-NEGATIVE = 'negative'
-ERROR = 'error'
 
-EFFECTIVE_STATUSES = [POSITIVE, NEGATIVE]
+class Triggers:
+    POSITIVE: str = 'POSITIVE'
+    NEGATIVE: str = 'NEGATIVE'
+    ERROR: str = 'ERROR'
+
+    EFFECTIVE_TRIGGERS: list = [POSITIVE, NEGATIVE]
 
 
 def classify_message(text):
+    text = text
+    points = 0
+    command_type = Triggers.ERROR
+    effective_pattern = ''
+
     positive_patterns = [
-        r'\bлови\b', r'\bполучай\b', r'\bэтому господину\b', r'\bэтому товарищу\b',
-        r'\bдаю\b', r'\bна\b', r'\bдержи\b', r'\bвот тебе\b', r'\bплюс\b', r'\bувеличиваем социальный рейтинг\b',
-        r'\bувеличить социальный рейтинг\b',
+        re.compile(r'лови\s*\+?\s*(\d+)\s*очков', re.RegexFlag.IGNORECASE),
+        re.compile(r'\s*\+?\s*(\d+)\sэтому господину', re.RegexFlag.IGNORECASE),
+        re.compile(r'\s*\+?\s*(\d+)\sочков этому господину', re.RegexFlag.IGNORECASE),
+        re.compile(r'\s*\+?\s*(\d+)\sэтому товарищу', re.RegexFlag.IGNORECASE),
+        re.compile(r'\s*\+?\s*(\d+)\sочков этому товарищу', re.RegexFlag.IGNORECASE),
+        re.compile(r'плюс\s(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'увеличиваю социальный рейтинг на\s(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'\+\s*(\d+)', re.RegexFlag.IGNORECASE),
     ]
     negative_patterns = [
-        r'\bминус\b', r'\bотобрать\b', r'\bзабрать\b', r'\bотнять\b', r'\bуменьшаем социальный рейтинг\b',
-        r'\bуменьшить социальный рейтинг\b',
+        re.compile(r'минус\s*(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'минусую\s*(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'отбираю\s*(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'отнимаю\s*(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'уменьшаю социальный рейтинг на\s(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'-\s*(\d+)', re.RegexFlag.IGNORECASE),
     ]
-    points = 0
-    command_type = ERROR
 
-    # Поиск чисел в тексте
-    number_pattern = re.compile(r'[-+]?\d+')
-    numbers = number_pattern.findall(text)
-
-    if numbers:
-        points = int(numbers[0])
-
-    if points == 0:
-        return command_type, points
-
-    # Проверка на положительные триггеры
     for pattern in positive_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            command_type = POSITIVE
+        match = pattern.search(text)
+        if match:
+            points = int(match.group(1))
+            command_type = Triggers.POSITIVE
+            effective_pattern = pattern.pattern
             break
 
-    # Проверка на отрицательные триггеры
-    for pattern in negative_patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            command_type = NEGATIVE
-            break
-
-    # Специальная проверка для чисел с плюсом или минусом
-    if re.search(r"\+\s*\d+", text):
-        command_type = POSITIVE
-    elif re.search(r"-\s*\d+", text):
-        command_type = NEGATIVE
-
-    return command_type, points
+    if command_type == Triggers.ERROR:
+        for pattern in negative_patterns:
+            match = pattern.search(text)
+            if match:
+                points = int(match.group(1))
+                command_type = Triggers.NEGATIVE
+                effective_pattern = pattern.pattern
+                break
+    if command_type in Triggers.EFFECTIVE_TRIGGERS and points > 0:
+        return command_type, points, effective_pattern
+    else:
+        return Triggers.ERROR, 0, effective_pattern
 
 
 async def add_points(appreciated: UserEntity, rater: UserEntity, points: int, message_id: int) -> bool:
