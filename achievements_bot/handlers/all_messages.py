@@ -22,26 +22,13 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # logger.info(f"Это реакция на сообщение {update.message.from_user}")
         await send_response(update, context, 'Это репост!')
     elif message.text and message.reply_to_message:
-        appreciated_user = await user.get_user(message.reply_to_message.from_user)
-        rater_user = await user.get_user(message.from_user)
-        logger.info(f"Это ответ на сообщение от {rater_user.name} на сообщение от {appreciated_user.name}")
-
-        if rater_user == appreciated_user:
-            return None
-
-        status, points, pattern = points_rate.classify_message(message.text)
-        if status == points_rate.Triggers.POSITIVE:
-            result = await points_rate.add_points(appreciated_user, rater_user, points, message.message_id)
-            reaction = ReactionEmoji.SHOCKED_FACE_WITH_EXPLODING_HEAD
-            if result:
-                reaction = ReactionEmoji.THUMBS_UP
-            await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=reaction)
-        elif status == points_rate.Triggers.NEGATIVE:
-            result = await points_rate.take_points(appreciated_user, rater_user, points, message.message_id)
-            reaction = ReactionEmoji.SHOCKED_FACE_WITH_EXPLODING_HEAD
-            if result:
-                reaction = ReactionEmoji.OK_HAND_SIGN
-            await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=reaction)
+        # TODO: можно красивее сделать, нужно подумать как.
+        users = await points_rate.get_target_users(message)
+        if isinstance(users, tuple):
+            recipient = users[0]
+            actor = users[1]
+            # TODO: прокидывать контекст в метод, возможно не самая лучшая идея...
+            await points_rate.run(message, context, recipient, actor)
 
     elif message.text:
         logger.info('simple message')

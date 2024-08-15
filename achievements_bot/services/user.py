@@ -1,79 +1,113 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Iterable
-from telegram import User as TelegramUser
+from telegram import User as TelegramUser, Chat, Message
 from achievements_bot.db import fetch_one, execute, DatabaseException, fetch_all
 from achievements_bot.services.logger import logger
+from typing import Optional, Dict
 
 
 @dataclass()
-class UserEntity:
-    id: int
-    name: str
-    points_rate: int
+class UserEntityId:
+    user_id: int = field(metadata={"comment": "ID пользователя в Telegram"})
+    chat_id: int = field(metadata={"comment": "ID чата, с которым работаем"})
 
 
-async def get_user(user: TelegramUser) -> UserEntity:
-    if not await _is_user_exists(int(user.id)):
+@dataclass()
+class UserEntityBase(UserEntityId):
+    user_name: str = field(metadata={"comment": "Уникальное имя пользователя"})
+
+    @staticmethod
+    def from_tg_message(message: Message, chat: int) -> 'UserEntityBase':
+        return UserEntityBase(
+            user_id=message.from_user.id,
+            user_name=message.from_user.username,
+            chat_id=chat,  # TODO: проверить, можно ли брать его тоже из message
+        )
+
+
+@dataclass()
+class UserEntity(UserEntityBase):
+    points_rate: int = field(metadata={"comment": "Количество очков, которое пользователь заработал"})
+
+    @staticmethod
+    def from_dict(data: Dict) -> 'UserEntity':
+        required_fields = ['user_id', 'chat_id', 'user_name']
+        for required_field in required_fields:
+            if required_field not in data:
+                raise ValueError(f"Missing required field: {field}")
+
+        return UserEntity(
+            user_id=data['user_id'],
+            chat_id=data['chat_id'],
+            user_name=data.get('user_name', 'Unknown'),
+            points_rate=data.get('points_rate', 0)
+        )
+
+
+async def get_user(user: UserEntityBase) -> UserEntity:
+    if not await _is_user_exists(user):
         await create_user(user)
     sql = """
-        SELECT id, name, points_rate
-        FROM user WHERE id = :id LIMIT 1
+        SELECT user_id, chat_id, user_name, points_rate
+        FROM user WHERE user_id = :user_id LIMIT 1
        """
-    _user = await fetch_one(sql, {
-        "id": user.id
+    result = await fetch_one(sql, {
+        "user_id": user.user_id
     })
-    return UserEntity(_user['id'], _user['name'], _user['points_rate'])
+    return UserEntity.from_dict(result)
 
 
-async def _is_user_exists(user_id: int) -> bool:
-    logger.debug(f'Проверяем если есть пользователь с id {str(user_id)}')
+async def _is_user_exists(user: UserEntityBase) -> bool:
+    logger.debug(f'Проверяем если есть пользователь с id {str(user.user_id)} в чате {str(user.chat_id)}')
     try:
-        user = await fetch_one(
+        found_user = await fetch_one(
             """
-            SELECT id FROM user WHERE id = :id LIMIT 1
+            SELECT user_id FROM user WHERE user_id = :user_id AND chat_id = :chat_id LIMIT 1
             """,
-            {"id": user_id}
+            {"user_id": user.user_id, "chat_id": user.chat_id}
         )
     except DatabaseException as e:
         logger.debug(f'Проверка не удалась. Ошибка при выполнении запроса: {e}')
         return False
 
-    if not user:
-        logger.debug(f'Пользователя с id {str(user_id)} не нашли')
+    if not found_user:
+        logger.debug(f'Пользователя с id {str(user.user_id)} в чате {str(user.chat_id)} не нашли')
         return False
-    logger.debug(f'Пользователя с id {str(user_id)} существует')
+    logger.debug(f'Пользователя с  id {str(user.user_id)} в чате {str(user.chat_id)} существует')
     return True
 
 
-async def create_user(user: TelegramUser) -> None:
-    logger.debug(f'Создаем пользователя')
+async def create_user(user: UserEntityBase) -> None:
+    logger.debug(f'Создаем пользователя: ')
+    logger.debug(user)
     await execute(
         """
-            INSERT INTO USER (id, name)
-            VALUES (:id, :name)
+            INSERT INTO USER (user_id, chat_id, user_name)
+            VALUES (:user_id, :chat_id, :user_name)
         """,
         {
-            "id": user.id,
-            "name": user.username,
+            "user_id": user.user_id,
+            "chat_id": user.chat_id,
+            "user_name": user.user_name,
         },
         autocommit=True,
     )
 
 
-async def update_points_total(user: UserEntity, new_points_rate: int) -> None:
-    """
-    Важно, чтобы при обновлении не срабатывал коммит, иначе он сбивает цепочку.
-    """
-    logger.debug(f'Обновляем очки пользователя {user.name}. Было - {user.points_rate}, стало - {new_points_rate}')
+async def update_points_balance(user: UserEntity, new_points_rate: int, autocommit=False) -> None:
+    logger.debug(f'Обновляем баланс очков пользователя {user.user_name}. '
+                 f'В чате {user.chat_id} '
+                 f'Было - {user.points_rate} => стало - {new_points_rate}')
     await execute(
         """
-            UPDATE USER  SET points_rate = :points WHERE id = :id
+            UPDATE USER  SET points_rate = :points WHERE user_id = :user_id AND chat_id = :chat_id 
         """,
         {
-            "id": user.id,
+            "user_id": user.user_id,
+            "chat_id": user.chat_id,
             "points": new_points_rate,
         },
-        autocommit=False,
+        autocommit=autocommit,
     )
 
 
@@ -82,7 +116,7 @@ async def get_all_users() -> Iterable[UserEntity] | None:
     try:
         users = await fetch_all(
             """
-            SELECT id, name, points_rate FROM user
+            SELECT user_id, chat_id, user_name, points_rate FROM user
             """,
         )
     except DatabaseException as e:
@@ -95,5 +129,5 @@ async def get_all_users() -> Iterable[UserEntity] | None:
     logger.debug(f'Достали список пользователей, упаковываем в entity')
     result = []
     for user in users:
-        result.append(UserEntity(user['id'], user['name'], user['points_rate']))
+        result.append(UserEntity.from_dict(user))
     return result
