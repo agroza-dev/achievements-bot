@@ -32,14 +32,14 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if rater_user == appreciated_user:
             return None
 
-        status, points = points_rate.classify_message(message.text)
-        if status == points_rate.POSITIVE:
+        status, points, pattern = points_rate.classify_message(message.text)
+        if status == points_rate.Triggers.POSITIVE:
             result = await points_rate.add_points(appreciated_user, rater_user, points, message.message_id)
             reaction = ReactionEmoji.SHOCKED_FACE_WITH_EXPLODING_HEAD
             if result:
                 reaction = ReactionEmoji.THUMBS_UP
             await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=reaction)
-        elif status == points_rate.NEGATIVE:
+        elif status == points_rate.Triggers.NEGATIVE:
             result = await points_rate.take_points(appreciated_user, rater_user, points, message.message_id)
             reaction = ReactionEmoji.SHOCKED_FACE_WITH_EXPLODING_HEAD
             if result:
