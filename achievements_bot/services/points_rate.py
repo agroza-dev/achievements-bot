@@ -27,6 +27,8 @@ def classify_message(text):
         re.compile(r'\s*\+?\s*(\d+)\sочков этому товарищу', re.RegexFlag.IGNORECASE),
         re.compile(r'плюс\s(\d+)', re.RegexFlag.IGNORECASE),
         re.compile(r'увеличиваю социальный рейтинг на\s(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'увеличиваю социальный рейтинг этого господина на\s(\d+)', re.RegexFlag.IGNORECASE),
+        re.compile(r'увеличиваю социальный рейтинг этому товарищу на\s(\d+)', re.RegexFlag.IGNORECASE),
         re.compile(r'\+\s*(\d+)', re.RegexFlag.IGNORECASE),
     ]
     negative_patterns = [
@@ -99,7 +101,7 @@ async def take_points(appreciated: UserEntity, rater: UserEntity, points: int, m
                 {
                     "appreciated_user": appreciated.id,
                     "rated_user": rater.id,
-                    "points": points,
+                    "points": -points,
                     "message": message_id,
                 },
                 autocommit=False,
