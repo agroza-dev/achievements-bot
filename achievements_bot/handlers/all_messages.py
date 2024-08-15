@@ -26,9 +26,6 @@ async def all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rater_user = await user.get_user(message.from_user)
         logger.info(f"Это ответ на сообщение от {rater_user.name} на сообщение от {appreciated_user.name}")
 
-        if appreciated_user.name == config.BOT_NAME:
-            logger.info('Ответ на сообщение бота...')
-            return None
         if rater_user == appreciated_user:
             return None
 
