@@ -20,9 +20,20 @@ class BotConfig(BaseModel):
     })
 
 
+class DatabaseConfig(BaseModel):
+    host: str = 'localhost'
+    port: int = 5432
+    name: str = 'achievements'
+    login: str = ''
+    password: str = ''
+    pool_min_size: int = 1
+    pool_max_size: int = 10
+    ssl_mode: str = 'prefer'  # Options: disable, allow, prefer, require, verify-ca, verify-full
+
 
 class LoggerConfig(BaseModel):
     path: str = os.path.join(BASE_DIR, "var/log")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -33,6 +44,7 @@ class Settings(BaseSettings):
     )
     bot: BotConfig = BotConfig()
     logs: LoggerConfig = LoggerConfig()
+    db: DatabaseConfig = DatabaseConfig()
 
 
 settings = Settings()

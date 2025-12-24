@@ -1,39 +1,76 @@
 import httpx
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageReactionHandler, PicklePersistence
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageReactionHandler,
+    PicklePersistence,
+)
 from telegram.request import HTTPXRequest
 
 from bot.handlers.error_handler import error_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from core.config import settings
+from core.database import db_manager
+from utils.logger import logger
 
-if __name__ == "__main__":
+
+async def on_startup(application):
+    logger.info("Bot startup")
+    await db_manager.init_pool()
+
+
+async def on_shutdown(application):
+    logger.info("Bot shutdown")
+    await db_manager.close_pool()
+
+
+def main():
     request = HTTPXRequest(
         httpx_kwargs={
             "timeout": httpx.Timeout(
-                connect = settings.bot.builder.get('connect'),
-                read = settings.bot.builder.get('read'),
-                write = settings.bot.builder.get('write'),
-                pool = settings.bot.builder.get('pool'),
+                connect=settings.bot.builder.get("connect"),
+                read=settings.bot.builder.get("read"),
+                write=settings.bot.builder.get("write"),
+                pool=settings.bot.builder.get("pool"),
             )
         }
     )
 
-    persistence = PicklePersistence(filepath=settings.bot.persistence)
-
-    application = (ApplicationBuilder()
-                   .token(settings.bot.token)
-                   .request(request)
-                   .persistence(persistence)
-                   .build()
+    persistence = PicklePersistence(
+        filepath=settings.bot.persistence,
     )
 
-    # Добавляем обработчик реакций до обработчика команд, чтобы проверить срабатывание
+    application = (
+        ApplicationBuilder()
+        .token(settings.bot.token)
+        .request(request)
+        .persistence(persistence)
+        .post_init(on_startup)
+        .post_shutdown(on_shutdown)
+        .build()
+    )
+
+    # Handlers
     application.add_handler(MessageReactionHandler(reaction_handler))
     application.add_handler(CommandHandler("start", start_handler))
 
-    # Add error handler
+    # Error handler
     application.add_error_handler(error_handler)
 
-    # Run polling with all allowed updates including message reactions
-    application.run_polling(allowed_updates=["message", "message_reaction", "message_reaction_count", "inline_query", "chosen_inline_result", "callback_query", "poll", "poll_answer"])
+    application.run_polling(
+        allowed_updates=[
+            "message",
+            "message_reaction",
+            "message_reaction_count",
+            "inline_query",
+            "chosen_inline_result",
+            "callback_query",
+            "poll",
+            "poll_answer",
+        ]
+    )
+
+
+if __name__ == "__main__":
+    main()

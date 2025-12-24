@@ -1,7 +1,14 @@
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from core.models import ReactionData
+from core.repositories import ReactionRepository
+
+# Initialize repository
+reaction_repo = ReactionRepository()
+logger = logging.getLogger(__name__)
 
 
 async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,5 +29,10 @@ async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"New reactions: {[r.emoji for r in reaction_data.new_reactions]}")
     print(reaction_data)
 
-    # This is where we would save to database in the future
-    # For now, we just have the structured data ready to be saved
+    # Save to database
+    try:
+        reaction_id = await reaction_repo.save_reaction(reaction_data)
+        print(f"Reaction saved to database with ID: {reaction_id}")
+    except Exception as e:
+        logger.error(f"Failed to save reaction to database: {e}")
+        print(f"Failed to save reaction to database: {e}")
