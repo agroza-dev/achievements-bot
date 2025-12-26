@@ -1,12 +1,18 @@
 import httpx
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    ContextTypes,
+    MessageHandler,
     MessageReactionHandler,
     PicklePersistence,
+    filters,
 )
 from telegram.request import HTTPXRequest
 
+from bot.handlers.ensure_context_handler import ensure_context_handler
+from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
@@ -52,8 +58,18 @@ def main():
     )
 
     # Handlers
-    application.add_handler(MessageReactionHandler(reaction_handler))
-    application.add_handler(CommandHandler("start", start_handler))
+    application.add_handler(
+        MessageHandler(filters.ALL, ensure_context_handler),
+        group=0
+    )
+
+    application.add_handler(
+        MessageReactionHandler(ensure_context_reaction_handler),
+        group=0
+    )
+
+    application.add_handler(MessageReactionHandler(reaction_handler), group=1)
+    application.add_handler(CommandHandler("start", start_handler), group=1)
 
     # Error handler
     application.add_error_handler(error_handler)
