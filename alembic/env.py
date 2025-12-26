@@ -25,14 +25,16 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Construct the database URL from settings
-database_url = f"postgresql://{settings.db.login}:{settings.db.password}@{settings.db.host}:{settings.db.port}/{settings.db.name}"
+from urllib.parse import quote
+encoded_password = quote(settings.db.password, safe='')
+database_url = f"postgresql://{settings.db.login}:{encoded_password}@{settings.db.host}:{settings.db.port}/{settings.db.name}"
 
 # Set the sqlalchemy.url in the config
-config.set_main_option('sqlalchemy.url', database_url)
+config.set_main_option('sqlalchemy.url', database_url.replace('%', '%%'))
 
 # Add your model's MetaData object here for 'autogenerate' support
 # This will be updated when we create the models
-from core.models_db import Base
+from core.models.base_model import Base
 
 target_metadata = Base.metadata
 
