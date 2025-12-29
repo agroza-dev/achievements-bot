@@ -1,9 +1,7 @@
 import httpx
-from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    ContextTypes,
     MessageHandler,
     MessageReactionHandler,
     PicklePersistence,

@@ -13,7 +13,7 @@ load_dotenv()
 # Add the project root to the path so we can import our modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from core.config import settings
+from core.config import settings  # noqa: E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,7 +25,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Construct the database URL from settings
-from urllib.parse import quote
+from urllib.parse import quote  # noqa: E402
+
 encoded_password = quote(settings.db.password, safe='')
 database_url = f"postgresql://{settings.db.login}:{encoded_password}@{settings.db.host}:{settings.db.port}/{settings.db.name}"
 
@@ -34,7 +35,7 @@ config.set_main_option('sqlalchemy.url', database_url.replace('%', '%%'))
 
 # Add your model's MetaData object here for 'autogenerate' support
 # This will be updated when we create the models
-from core.models.base_model import Base
+from core.models.base_model import Base  # noqa: E402
 
 target_metadata = Base.metadata
 

@@ -6,7 +6,7 @@ from datetime import datetime
 class ChatDTO:
     id: int
     tg_id: int
-    title: int
+    title: str
     type: str
     is_active: bool
     settings: str
