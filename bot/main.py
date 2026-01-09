@@ -12,10 +12,11 @@ from telegram.request import HTTPXRequest
 from bot.handlers.ensure_context_handler import ensure_context_handler
 from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
+from bot.handlers.message_metadata_handler import message_metadata_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from core.config import settings
-from core.database import db_manager
+from core.infrastructure.database import db_manager
 from utils.logger import logger
 
 
@@ -66,8 +67,16 @@ def main():
         group=0
     )
 
-    application.add_handler(MessageReactionHandler(reaction_handler), group=1)
-    application.add_handler(CommandHandler("start", start_handler), group=1)
+    application.add_handler(
+        MessageHandler(
+            filters.ALL & ~filters.UpdateType.EDITED_MESSAGE,
+            message_metadata_handler,
+        ),
+        group=1,
+    )
+
+    application.add_handler(MessageReactionHandler(reaction_handler), group=2)
+    application.add_handler(CommandHandler("start", start_handler), group=2)
 
     # Error handler
     application.add_error_handler(error_handler)

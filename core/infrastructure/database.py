@@ -56,6 +56,51 @@ class DatabaseManager:
         async with self.pool.acquire() as conn, conn.transaction():
             yield conn
 
+    async def acquire(self) -> asyncpg.Connection:
+        if not self.pool:
+            raise RuntimeError("Database pool not initialized")
+        return await self.pool.acquire()
 
-# Global database manager instance
+    async def release(self, conn: asyncpg.Connection):
+        await self.pool.release(conn)
+
+
+class DbUnitOfWork:
+    def __init__(self, pool: asyncpg.Pool):
+        if not isinstance(pool, asyncpg.Pool):
+            raise TypeError(
+                f"DbUnitOfWork expects asyncpg.Pool, got {type(pool)!r}"
+            )
+
+        self.pool = pool
+        self.conn = None
+        self._repos = {}
+
+    async def __aenter__(self):
+        self.conn = await self.pool.acquire()
+        self.tx = self.conn.transaction()
+        await self.tx.start()
+        return self
+
+    def get_repo(self, repo_cls):
+        """
+        Ленивая инициализация репозиториев.
+        Позволяет use case самому решать,
+        какие репозитории участвуют в транзакции.
+        """
+        if repo_cls not in self._repos:
+            self._repos[repo_cls] = repo_cls(self.conn)
+        return self._repos[repo_cls]
+
+    async def __aexit__(self, exc_type, exc, tb):
+        try:
+            if exc_type:
+                await self.tx.rollback()
+            else:
+                await self.tx.commit()
+        finally:
+            await self.pool.release(self.conn)
+
+
+
 db_manager = DatabaseManager()
