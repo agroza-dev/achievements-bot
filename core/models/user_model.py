@@ -1,16 +1,16 @@
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, MetaData, String, Table, func
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, String, Table, func
 
-metadata = MetaData()
+from core.models.metadata import metadata
 
-user = Table(
+users = Table(
     "users",
     metadata,
-    Column("id", BigInteger, primary_key=True),
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("tg_id", BigInteger, nullable=False, unique=True),
-    Column("username", String(64), nullable=True),
-    Column("first_name", String(255), nullable=True),
-    Column("last_name", String(255), nullable=True),
-    Column("is_bot", Boolean, nullable=False),
+    Column("username", String(64)),
+    Column("first_name", String(255)),
+    Column("last_name", String(255)),
+    Column("is_bot", Boolean, nullable=False, server_default="false"),
     Column("created_at", DateTime(timezone=True), server_default=func.now()),
     Column("updated_at", DateTime(timezone=True), server_default=func.now()),
 )
