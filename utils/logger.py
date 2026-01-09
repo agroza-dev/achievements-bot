@@ -5,24 +5,35 @@ from logging.handlers import TimedRotatingFileHandler
 from core.config import settings
 
 
-def setup_logging():
+def setup_logging() -> None:
     log_dir = settings.logs.path
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    os.makedirs(log_dir, exist_ok=True)
 
-    log_file = os.path.join(log_dir, 'bot.log')
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    log_file = os.path.join(log_dir, "bot.log")
 
-    log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(filename)s:%(lineno)d | %(message)s"
+    )
 
-    handler = TimedRotatingFileHandler(log_file, when='midnight', interval=1, backupCount=7, encoding='utf-8')
-    handler.suffix = "%d-%m-%Y"
-    handler.setLevel(logging.DEBUG)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    if any(isinstance(h, TimedRotatingFileHandler) for h in root_logger.handlers):
+        return
+
+    handler = TimedRotatingFileHandler(
+        log_file,
+        when="midnight",
+        interval=1,
+        backupCount=7,
+        encoding="utf-8",
+    )
+    handler.setLevel(logging.DEBUG if settings.app.debug else logging.INFO)
     handler.setFormatter(formatter)
-    log.addHandler(handler)
 
-    return log
+    root_logger.addHandler(handler)
 
 
-logger = setup_logging()
+setup_logging()
+
+logger = logging.getLogger(__name__)

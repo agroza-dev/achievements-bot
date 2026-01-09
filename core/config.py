@@ -8,6 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
 
+class Application(BaseModel):
+    debug: bool = False
+
 class BotConfig(BaseModel):
     token: str = ''
     persistence: str = os.path.join(BASE_DIR, "var/db/persistence.pkl")
@@ -42,6 +45,7 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
         env_prefix="APP_CONFIG__"
     )
+    app: Application = Application()
     bot: BotConfig = BotConfig()
     logs: LoggerConfig = LoggerConfig()
     db: DatabaseConfig = DatabaseConfig()
