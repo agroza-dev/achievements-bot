@@ -1,5 +1,6 @@
 .venv
 .ruff_cache
+.idea
 *__pycache__
 .pytest_cache
 var/log/*.log*
