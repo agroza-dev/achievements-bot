@@ -100,7 +100,3 @@ class DbUnitOfWork:
                 await self.tx.commit()
         finally:
             await self.pool.release(self.conn)
-
-
-
-db_manager = DatabaseManager()

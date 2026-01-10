@@ -1,29 +1,32 @@
+"""Middleware для обеспечения контекста бота."""
+
 from telegram import Chat, Update, User
 from telegram.ext import CallbackContext
 
-from core.application.context.ensure_chat import EnsureChatUseCase
-from core.application.context.ensure_chat_user import EnsureChatUserUseCase
-from core.application.context.ensure_user import EnsureUserUseCase
-from core.dto.bot_context import BotContextDTO
-from core.infrastructure.database import DbUnitOfWork, db_manager
+from core.container import Container
 
 
 async def ensure_context(update: Update, context: CallbackContext):
+    """
+    Обеспечить контекст бота (user, chat, chat_user) в одной транзакции.
+
+    Args:
+        update: Telegram update объект
+        context: Контекст обработчика бота
+    """
     user: User = update.effective_user
     chat: Chat = update.effective_chat
 
     if not user or not chat:
         return
 
-    def uow_factory():
-        return DbUnitOfWork(db_manager.pool)
+    # Получаем контейнер из application context
+    container: Container = context.bot_data.get('container')
+    if not container:
+        raise RuntimeError("Container not initialized. Ensure container is set in bot_data during startup.")
 
-    user_dto = await EnsureUserUseCase(uow_factory).execute(user)
-    chat_dto = await EnsureChatUseCase(uow_factory).execute(chat)
-    chat_user_dto = await EnsureChatUserUseCase(uow_factory).execute(chat_dto.id, user_dto.id)
+    # Используем объединенный use case для выполнения всех операций в одной транзакции
+    ensure_context_use_case = container.get_ensure_context_use_case()
+    bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
 
-    context.bot_data['ctx'] = BotContextDTO(
-        user= user_dto,
-        chat= chat_dto,
-        chat_user= chat_user_dto,
-    )
+    context.bot_data['ctx'] = bot_context

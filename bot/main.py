@@ -1,3 +1,5 @@
+"""Главный модуль для запуска Telegram бота."""
+
 import httpx
 from telegram.ext import (
     ApplicationBuilder,
@@ -16,18 +18,39 @@ from bot.handlers.message_metadata_handler import message_metadata_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from core.config import settings
-from core.infrastructure.database import db_manager
+from core.container import Container
+from core.infrastructure.database import DatabaseManager
 from utils.logger import logger
 
 
 async def on_startup(application):
+    """Инициализация при старте бота."""
     logger.info("Bot startup")
+
+    # Инициализируем менеджер базы данных
+    db_manager = DatabaseManager()
     await db_manager.init_pool()
+
+    # Создаем DI контейнер с инициализированным менеджером БД
+    container = Container(db_manager)
+
+    # Сохраняем контейнер в application context для использования в handlers
+    application.bot_data['container'] = container
+    application.bot_data['db_manager'] = db_manager  # Для обратной совместимости, если нужно
+
+    logger.info("Container initialized and ready")
 
 
 async def on_shutdown(application):
+    """Очистка при остановке бота."""
     logger.info("Bot shutdown")
-    await db_manager.close_pool()
+
+    # Закрываем пул подключений к БД
+    db_manager: DatabaseManager = application.bot_data.get('db_manager')
+    if db_manager:
+        await db_manager.close_pool()
+
+    logger.info("Database pool closed")
 
 
 def main():

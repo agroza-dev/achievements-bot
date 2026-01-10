@@ -1,16 +1,23 @@
+"""Handler для обработки метаданных сообщений."""
+
 import pprint
 
 from telegram import Message, MessageOrigin, Update
 from telegram.ext import ContextTypes
 
-from core.application.messages.process_chat_message import ProcessChatMessageUseCase
-from core.domain.messages.default_chat_message_policy import DefaultChatMessagePolicy
+from core.container import Container
 from core.dto.bot_context import BotContextDTO
 from core.dto.chat_message_create_dto import ChatMessageCreateDTO
-from core.infrastructure.database import DbUnitOfWork, db_manager
 
 
 async def message_metadata_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обработать метаданные сообщения и сохранить в базу данных.
+
+    Args:
+        update: Telegram update объект
+        context: Контекст обработчика бота
+    """
     ctx: BotContextDTO = context.bot_data["ctx"]
 
     message: Message = update.message
@@ -26,12 +33,15 @@ async def message_metadata_handler(update: Update, context: ContextTypes.DEFAULT
         created_at=message.date,
     )
 
-    use_case = ProcessChatMessageUseCase(
-        uow_factory=lambda: DbUnitOfWork(db_manager.pool),
-        message_policy=DefaultChatMessagePolicy(),
-    )
+    # Получаем контейнер из application context
+    container: Container = context.bot_data.get('container')
+    if not container:
+        raise RuntimeError("Container not initialized. Ensure container is set in bot_data during startup.")
 
-    await use_case.execute(ctx = ctx, message_dto=message_dto)
+    # Получаем use case из контейнера
+    use_case = container.get_process_message_use_case()
+
+    await use_case.execute(ctx=ctx, message_dto=message_dto)
 
 
 def _get_message_kind(message: Message) -> str:
