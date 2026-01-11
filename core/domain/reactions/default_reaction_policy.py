@@ -8,7 +8,7 @@ class DefaultReactionPolicy(ReactionPolicy):
         if len(existing) >= self.MAX_REACTIONS:
             return False
 
-        if any(r.reaction == reaction for r in existing):
+        if any(r.reaction == reaction for r in existing):  # noqa: SIM103
             return False
 
         return True

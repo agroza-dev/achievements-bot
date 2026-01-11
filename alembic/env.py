@@ -1,14 +1,13 @@
 import os
 import sys
 from logging.config import fileConfig
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from urllib.parse import quote
 from core.config import settings
-
 
 # Load environment variables
 load_dotenv()

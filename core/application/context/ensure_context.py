@@ -10,7 +10,6 @@ from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.chat_user_repository import ChatUserRepository
 from core.infrastructure.repositories.user_repository import UserRepository
 
-
 UowFactory = Callable[[], DbUnitOfWork]
 
 
