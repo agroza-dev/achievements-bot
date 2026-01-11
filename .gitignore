@@ -8,3 +8,4 @@ var/db/persistence.pkl
 .env
 project_file_structure.txt
 db_helper.pgsql
+/.vscode/settings.json
