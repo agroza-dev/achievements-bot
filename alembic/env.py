@@ -39,6 +39,7 @@ from core.models import (  # noqa: E402, F401
     chat_message_model,
     chat_model,
     chat_user_model,
+    rating_ledger,
     reaction_model,
     user_model,
 )

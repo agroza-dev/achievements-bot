@@ -2,10 +2,12 @@ from collections.abc import Callable
 
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.dto.bot_context import BotContextDTO
+from core.dto.rating_ledger_dto import RatingLedgerEntryDTO
 from core.dto.reaction_dto import ReactionDTO
 from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_message_repository import DbChatMessageRepository
 from core.infrastructure.repositories.chat_repository import ChatRepository
+from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.reaction_repository import DbReactionRepository
 from utils.logger import logger
@@ -57,6 +59,7 @@ class ProcessReactionUseCase:
             chat_message_repo = uow.get_repo(DbChatMessageRepository)
             reaction_repo = uow.get_repo(DbReactionRepository)
             rating_repo = uow.get_repo(DbRatingRepository)
+            rating_ledger_repo = uow.get_repo(DbRatingLedgerRepository)
             chat_dto = await chat_repo.get_by_tg_id(tg_chat_id)
 
             # Находим сообщение один раз для всех изменений
@@ -90,8 +93,10 @@ class ProcessReactionUseCase:
                 await self._process_single_reaction_in_transaction(
                     reaction_repo=reaction_repo,
                     rating_repo=rating_repo,
+                    rating_ledger_repo=rating_ledger_repo,
                     ctx=ctx,
                     chat_id=chat_dto.id,
+                    message_id=message.id,
                     tg_message_id=tg_message_id,
                     reaction=emoji,
                     action='removed',
@@ -103,8 +108,10 @@ class ProcessReactionUseCase:
                 await self._process_single_reaction_in_transaction(
                     reaction_repo=reaction_repo,
                     rating_repo=rating_repo,
+                    rating_ledger_repo=rating_ledger_repo,
                     ctx=ctx,
                     chat_id=chat_dto.id,
+                    message_id=message.id,
                     tg_message_id=tg_message_id,
                     reaction=emoji,
                     action='added',
@@ -115,8 +122,10 @@ class ProcessReactionUseCase:
         self,
         reaction_repo: DbReactionRepository,
         rating_repo: DbRatingRepository,
+        rating_ledger_repo: DbRatingLedgerRepository,
         ctx: BotContextDTO,
         chat_id: int,
+        message_id: int,
         tg_message_id: int,
         reaction: str,
         action: str,  # 'added' или 'removed'
@@ -128,8 +137,10 @@ class ProcessReactionUseCase:
         Args:
             reaction_repo: Репозиторий реакций
             rating_repo: Репозиторий рейтингов
+            rating_ledger_repo: Репозиторий rating_ledger
             ctx: Контекст бота с информацией о пользователе, который ставит реакцию
             chat_id: ID чата
+            message_id: ID сообщения (внутренний)
             tg_message_id: ID сообщения в Telegram
             reaction: Эмодзи реакции (например, '👍')
             action: Действие - 'added' или 'removed'
@@ -155,11 +166,60 @@ class ProcessReactionUseCase:
                 # Уменьшаем рейтинг автора
                 delta = self.policy.rating_delta(reaction)
                 if delta != 0:
-                    await rating_repo.add(
+                    # Помечаем исходную запись как отмененную по эмодзи
+                    await rating_ledger_repo.mark_as_reverted_by_emoji(
+                        source_type="message",
+                        source_id=message_id,
+                        chat_id=chat_id,
+                        user_id=target_user_id,
+                        reverted_by_id=ctx.user.id,
+                        emoji=reaction
+                    )
+
+                    # Находим предыдущую запись в ledger для этой реакции для получения ID
+                    ledger_entries = await rating_ledger_repo.find_by_source(
+                        source_type="message",
+                        source_id=message_id,
+                        chat_id=chat_id,
+                        user_id=target_user_id
+                    )
+                    print(ledger_entries)
+                    # Находим соответствующую запись о добавлении реакции
+                    original_entry = None
+                    for entry in ledger_entries:
+                        if (entry.is_reverted and  # Ищем уже отмененную запись
+                            entry.operation_type == 'reaction' and
+                            entry.operation_subtype == 'added' and
+                            entry.amount == delta and
+                            entry.meta.get('emoji') == reaction):
+                            original_entry = entry
+                            break
+
+                    new_balance = await rating_repo.add(
                         chat_id,
                         target_user_id,
                         -delta,
                     )
+
+                    # Записываем компенсирующую запись в ledger
+                    await rating_ledger_repo.add(
+                        RatingLedgerEntryDTO(
+                            chat_id=chat_id,
+                            user_id=target_user_id,
+                            initiator_user_id=ctx.user.id,
+                            amount=-delta,
+                            balance_after=new_balance,
+                            operation_type="adjustment",
+                            operation_subtype="reaction_revert",
+                            source_type="message",
+                            source_id=message_id,
+                            meta={
+                                "emoji": reaction,
+                                "original_ledger_entry_id": original_entry.id if original_entry else None
+                            },
+                        )
+                    )
+
                     logger.info(
                         f"Reaction '{reaction}' removed: "
                         f"user {ctx.user.id} removed reaction from message by user {target_user_id} "
@@ -205,11 +265,28 @@ class ProcessReactionUseCase:
             # Начисляем рейтинг автору сообщения
             delta = self.policy.rating_delta(reaction)
             if delta != 0:
-                await rating_repo.add(
+                new_balance = await rating_repo.add(
                     chat_id,
                     target_user_id,
                     delta,
                 )
+
+                # Записываем в ledger
+                await rating_ledger_repo.add(
+                    RatingLedgerEntryDTO(
+                        chat_id=chat_id,
+                        user_id=target_user_id,
+                        initiator_user_id=ctx.user.id,
+                        amount=delta,
+                        balance_after=new_balance,
+                        operation_type="reaction",
+                        operation_subtype="added",
+                        source_type="message",
+                        source_id=message_id,
+                        meta={"emoji": reaction},
+                    )
+                )
+
                 logger.info(
                     f"Reaction '{reaction}' added: "
                     f"user {ctx.user.id} reacted to message by user {target_user_id} "
@@ -219,11 +296,28 @@ class ProcessReactionUseCase:
             # Налог (пока 0, но архитектурно готов)
             tax = self.policy.tax(reaction)
             if tax > 0:
-                await rating_repo.add(
+                tax_balance = await rating_repo.add(
                     chat_id,
                     ctx.user.id,
                     -tax,
                 )
+
+                # Записываем налог в ledger
+                await rating_ledger_repo.add(
+                    RatingLedgerEntryDTO(
+                        chat_id=chat_id,
+                        user_id=ctx.user.id,
+                        initiator_user_id=ctx.user.id,
+                        amount=-tax,
+                        balance_after=tax_balance,
+                        operation_type="tax",
+                        operation_subtype="reaction_tax",
+                        source_type="message",
+                        source_id=message_id,
+                        meta={"reaction": reaction, "emoji": reaction},
+                    )
+                )
+
                 logger.info(
                     f"Reaction tax applied: user {ctx.user.id} paid tax {tax} "
                     f"for reaction '{reaction}'"
