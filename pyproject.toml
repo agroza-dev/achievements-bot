@@ -69,6 +69,7 @@ unfixable = []
 ignore = [
     "E501",  # line too long (handled by line-length)
     "RUF002",
+    "RUF003",
 ]
 
 [tool.ruff.lint.isort]

@@ -1,7 +1,5 @@
 """Handler для обработки метаданных сообщений."""
 
-import pprint
-
 from telegram import Message, MessageOrigin, Update
 from telegram.ext import ContextTypes
 
@@ -55,7 +53,7 @@ def _get_message_kind(message: Message) -> str:
         return "left_chat_member"
 
     if message.new_chat_members:
-        return "new_chat_member"
+        return "new_chat_member" # TODO не логировать или вынести в отдельный use-case
 
     # 2. Forward / repost
     if message.forward_origin:
@@ -103,7 +101,7 @@ def _get_message_kind(message: Message) -> str:
         return "venue"
 
     # 5. Fallback
-    return "unknown"
+    return "unknown" # TODO - нужно отслеживать событие, когда группа превращается в супер группу, чтобы не терять связь
 
 def _detect_media_type(message: Message) -> str:
     if message.photo:
@@ -152,7 +150,6 @@ def parse_message(message: Message) -> tuple[str, dict]:
     if message.forward_origin:
         fo: MessageOrigin = message.forward_origin
         source = fo.type.lower()
-        pprint.pprint(fo)
 
         # Initialize both from_chat and from_user as None
         from_chat = None

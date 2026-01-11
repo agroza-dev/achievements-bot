@@ -1,22 +1,51 @@
+import logging
+import pprint
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from core.infrastructure.database import DbUnitOfWork, db_manager
-from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
+from bot.ptb_models.reactions import ReactionData
+from core.container import Container
 from core.dto.bot_context import BotContextDTO
-from core.application.reactions.process_reaction import ProcessReactionUseCase
+
+logger = logging.getLogger(__name__)
 
 
 async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ctx: BotContextDTO = context.bot_data["ctx"]
+    """Обработать реакцию на сообщение."""
+    ctx: BotContextDTO = context.bot_data.get("ctx")
+    print(ctx)
+    if not ctx:
+        logger.error("Bot context not found in reaction handler")
+        return
 
+    try:
+        # Получаем контейнер из application context
+        container: Container = context.bot_data.get('container')
+        if not container:
+            raise RuntimeError("Container not initialized. Ensure container is set in bot_data during startup.")
 
-    use_case = ProcessReactionUseCase(
-        uow_factory=lambda: DbUnitOfWork(db_manager.pool),
-        reaction_policy=DefaultReactionPolicy(),
-    )
+        # Получаем данные о реакции из update
+        reaction_data = ReactionData.from_update(update, context)
 
-    # await use_case.execute(
-        # ctx = ctx,
-    # )
+        # Преобразуем реакции в список строк (эмодзи)
+        old_reactions = [r.emoji for r in reaction_data.old_reactions]
+        new_reactions = [r.emoji for r in reaction_data.new_reactions]
 
+        # Получаем use case из контейнера
+        use_case = container.get_process_reaction_use_case()
+        pprint.pprint(reaction_data)
+        # Передаем обработку в use case
+        await use_case.execute(
+            ctx=ctx,
+            tg_chat_id=reaction_data.chat_id,
+            tg_message_id=reaction_data.message_id,
+            old_reactions=old_reactions,
+            new_reactions=new_reactions,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error processing reaction: {e}",
+            exc_info=True
+        )

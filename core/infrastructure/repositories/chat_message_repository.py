@@ -22,6 +22,7 @@ class DbChatMessageRepository:
             chat_id,
             tg_message_id,
         )
+        # TODO правильная обработка если запись не найдена
         return ChatMessageMapper.from_record(row)
 
     async def add(

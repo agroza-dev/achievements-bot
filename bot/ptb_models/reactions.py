@@ -1,4 +1,3 @@
-import pprint
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -38,7 +37,7 @@ class ReactionData:
         chat = mr.chat
         old_reactions = list(mr.old_reaction) if mr.old_reaction else []
         new_reactions = list(mr.new_reaction) if mr.new_reaction else []
-        pprint.pprint(update.message)
+
         # Determine the action based on old and new reactions
         action = cls._determine_action(old_reactions, new_reactions)
 

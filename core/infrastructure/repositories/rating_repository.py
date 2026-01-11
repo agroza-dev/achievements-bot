@@ -11,11 +11,18 @@ class DbRatingRepository:
         user_id: int,
         value: int,
     ) -> None:
+        """
+        Добавить значение к рейтингу пользователя в чате.
+        Если записи не существует, создает её с начальным рейтингом.
+        """
         await self.conn.execute(
             """
-            UPDATE chat_users
-            SET rating = rating + $1
-            WHERE chat_id = $2 AND user_id = $3
+            INSERT INTO chat_users (chat_id, user_id, rating, is_active)
+            VALUES ($2, $3, $1, true)
+            ON CONFLICT (chat_id, user_id) 
+            DO UPDATE SET 
+                rating = chat_users.rating + $1,
+                is_active = true
             """,
             value,
             chat_id,

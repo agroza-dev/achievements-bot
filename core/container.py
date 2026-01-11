@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 from core.domain.messages.chat_message_policy import ChatMessagePolicy
 from core.domain.messages.default_chat_message_policy import DefaultChatMessagePolicy
+from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
+from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.infrastructure.database import DatabaseManager, DbUnitOfWork
 
 if TYPE_CHECKING:
@@ -13,6 +15,7 @@ if TYPE_CHECKING:
     from core.application.context.ensure_context import EnsureContextUseCase
     from core.application.context.ensure_user import EnsureUserUseCase
     from core.application.messages.process_chat_message import ProcessChatMessageUseCase
+    from core.application.reactions.process_reaction import ProcessReactionUseCase
 
 
 UowFactory = Callable[[], DbUnitOfWork]
@@ -33,6 +36,7 @@ class Container:
 
         self._db_manager = db_manager
         self._message_policy: ChatMessagePolicy | None = None
+        self._reaction_policy: ReactionPolicy | None = None
 
     def get_uow_factory(self) -> UowFactory:
         """
@@ -83,5 +87,24 @@ class Container:
         return ProcessChatMessageUseCase(
             uow_factory=self.get_uow_factory(),
             message_policy=self.get_message_policy(),
+        )
+
+    def get_reaction_policy(self) -> ReactionPolicy:
+        """
+        Получить политику обработки реакций (singleton).
+
+        Returns:
+            Экземпляр политики обработки реакций
+        """
+        if self._reaction_policy is None:
+            self._reaction_policy = DefaultReactionPolicy()
+        return self._reaction_policy
+
+    def get_process_reaction_use_case(self) -> ProcessReactionUseCase:
+        """Создать use case для обработки реакции на сообщение."""
+        from core.application.reactions.process_reaction import ProcessReactionUseCase
+        return ProcessReactionUseCase(
+            uow_factory=self.get_uow_factory(),
+            reaction_policy=self.get_reaction_policy(),
         )
 
