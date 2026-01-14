@@ -49,24 +49,22 @@ class ProcessReactionUseCase:
             )
             return
 
-        # Обрабатываем все изменения в одной транзакции
+        # Проверяем наличие чата и сообщения до начала транзакции
         async with self.uow_factory() as uow:
             chat_repo: ChatRepository = uow.get_repo(ChatRepository)
             chat_message_repo = uow.get_repo(DbChatMessageRepository)
-            reaction_repo = uow.get_repo(DbReactionRepository)
-            rating_repo = uow.get_repo(DbRatingRepository)
-            rating_ledger_repo = uow.get_repo(DbRatingLedgerRepository)
 
-            # Создаем сервис для работы с реакциями
-            reaction_service = ReactionService(
-                reaction_repo=reaction_repo,
-                rating_repo=rating_repo,
-                ledger_repo=rating_ledger_repo,
-                policy=self.policy
-            )
-
-            # Получаем информацию о чате и сообщении
+            # Получаем информацию о чате
             chat_dto = await chat_repo.get_by_tg_id(tg_chat_id)
+
+            # Проверяем, что чат существует
+            if not chat_dto:
+                logger.debug(
+                    f"Chat not found: tg_chat_id={tg_chat_id}. Skipping reaction processing."
+                )
+                return
+
+            # Получаем сообщение
             message = await chat_message_repo.get_by_tg_id(chat_dto.id, tg_message_id)
 
             # Проверяем валидность сообщения
@@ -83,6 +81,18 @@ class ProcessReactionUseCase:
                     f"User {ctx.user.id} reacted to their own message. Skipping rating update."
                 )
                 return
+
+            # Создаем сервис для работы с реакциями
+            reaction_repo = uow.get_repo(DbReactionRepository)
+            rating_repo = uow.get_repo(DbRatingRepository)
+            rating_ledger_repo = uow.get_repo(DbRatingLedgerRepository)
+
+            reaction_service = ReactionService(
+                reaction_repo=reaction_repo,
+                rating_repo=rating_repo,
+                ledger_repo=rating_ledger_repo,
+                policy=self.policy
+            )
 
             # Обрабатываем каждое удаление
             for reaction in changes.removed:
