@@ -1,5 +1,4 @@
 import logging
-import pprint
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработать реакцию на сообщение."""
     ctx: BotContextDTO = context.bot_data.get("ctx")
-    print(ctx)
     if not ctx:
         logger.error("Bot context not found in reaction handler")
         return
@@ -34,7 +32,6 @@ async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Получаем use case из контейнера
         use_case = container.get_process_reaction_use_case()
-        pprint.pprint(reaction_data)
         # Передаем обработку в use case
         await use_case.execute(
             ctx=ctx,
