@@ -7,7 +7,7 @@ from core.dto.user_dto import UserDTO
 logger = logging.getLogger(__name__)
 
 def map_user(record: Record) -> UserDTO:
-    return UserDTO(
+    dto = UserDTO(
         id=record["id"],
         tg_id=record["tg_id"],
         username=record["username"],
@@ -17,3 +17,5 @@ def map_user(record: Record) -> UserDTO:
         created_at=record["created_at"],
         updated_at=record["updated_at"],
     )
+    logger.debug(f"Mapped user {dto} by record {record}")
+    return dto

@@ -7,6 +7,9 @@ from core.domain.messages.chat_message_policy import ChatMessagePolicy
 from core.domain.messages.default_chat_message_policy import DefaultChatMessagePolicy
 from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
 from core.domain.reactions.reaction_policy import ReactionPolicy
+from core.application.transfers.transfer_points_use_case import TransferPointsUseCase
+from core.domain.transfers.default_transfer_policy import DefaultTransferPolicy
+from core.domain.transfers.transfer_policy import TransferPolicy
 from core.infrastructure.database import DatabaseManager, DbUnitOfWork
 
 if TYPE_CHECKING:
@@ -37,6 +40,7 @@ class Container:
         self._db_manager = db_manager
         self._message_policy: ChatMessagePolicy | None = None
         self._reaction_policy: ReactionPolicy | None = None
+        self._transfer_policy: TransferPolicy | None = None
 
     def get_uow_factory(self) -> UowFactory:
         """
@@ -107,4 +111,12 @@ class Container:
             uow_factory=self.get_uow_factory(),
             reaction_policy=self.get_reaction_policy(),
         )
+
+    def get_transfer_policy(self) -> TransferPolicy:
+        if self._transfer_policy is None:
+            self._transfer_policy = DefaultTransferPolicy()
+        return self._transfer_policy
+
+    def get_transfer_points_use_case(self) -> TransferPointsUseCase:
+        return TransferPointsUseCase(self.get_uow_factory(), self.get_transfer_policy())
 

@@ -17,6 +17,7 @@ from bot.handlers.error_handler import error_handler
 from bot.handlers.message_metadata_handler import message_metadata_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
+from bot.handlers.transfer_handler import transfer_handler
 from core.config import settings
 from core.container import Container
 from core.infrastructure.database import DatabaseManager
@@ -102,6 +103,8 @@ def main():
 
     application.add_handler(MessageReactionHandler(reaction_handler), group=2)
     application.add_handler(CommandHandler("start", start_handler), group=2)
+
+    application.add_handler(MessageHandler(filters.TEXT, transfer_handler), group=3)
 
     # Error handler
     application.add_error_handler(error_handler)

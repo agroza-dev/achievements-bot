@@ -33,3 +33,18 @@ class DbRatingRepository:
             user_id,
         )
         return result or 0
+
+    async def get_current(
+        self,
+        chat_id: int,
+        user_id: int,
+    ) -> int:
+        result = await self.conn.fetchval(
+            """
+            SELECT rating FROM chat_users
+            where chat_id = $1 and user_id = $2
+            """,
+            chat_id,
+            user_id,
+        )
+        return result or 0
