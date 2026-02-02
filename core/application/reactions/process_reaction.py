@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 
 from core.application.reactions.reaction_diff import ReactionDiff
@@ -10,7 +11,8 @@ from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.reaction_repository import DbReactionRepository
-from utils.logger import logger
+
+logger = logging.getLogger(__name__)
 
 UowFactory = Callable[[], DbUnitOfWork]
 

@@ -20,10 +20,12 @@ from bot.handlers.start_handler import start_handler
 from core.config import settings
 from core.container import Container
 from core.infrastructure.database import DatabaseManager
+from utils import trace_logger
 from utils.logger import logger
 
 
 async def on_startup(application):
+    trace_logger.get_logger(__name__)
     """Инициализация при старте бота."""
     logger.info("Bot startup")
 

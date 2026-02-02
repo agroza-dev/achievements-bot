@@ -18,6 +18,7 @@ async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
+        logger.debug(f"Reaction handler called with update={update}")
         # Получаем контейнер из application context
         container: Container = context.bot_data.get('container')
         if not container:

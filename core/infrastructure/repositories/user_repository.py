@@ -1,8 +1,12 @@
+import logging
+
 import asyncpg
 from telegram import User
 
 from core.dto.user_dto import UserDTO
 from core.infrastructure.repositories.mappers.user_mapper import map_user
+
+logger = logging.getLogger(__name__)
 
 
 class UserRepository:

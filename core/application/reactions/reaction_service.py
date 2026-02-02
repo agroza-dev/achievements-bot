@@ -1,3 +1,6 @@
+import logging
+
+from core.application.reactions.reaction_intent import ReactionKind
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.dto.bot_context import BotContextDTO
 from core.dto.rating_ledger_dto import RatingLedgerEntryDTO
@@ -5,7 +8,8 @@ from core.dto.reaction_dto import ReactionDTO
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.reaction_repository import DbReactionRepository
-from utils.logger import logger
+
+logger = logging.getLogger(__name__)
 
 
 class ReactionService:

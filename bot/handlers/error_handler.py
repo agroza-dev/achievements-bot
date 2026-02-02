@@ -1,3 +1,4 @@
+import logging
 import traceback
 import uuid
 
@@ -10,7 +11,7 @@ from telegram.error import (
 )
 from telegram.ext import ContextTypes
 
-from utils.logger import logger
+logger = logging.getLogger(__name__)
 
 
 class BusinessError(Exception):
@@ -40,12 +41,7 @@ async def error_handler(update: Update | None, context: ContextTypes.DEFAULT_TYP
             return
 
         case BadRequest():
-            logger.warning(
-                "[%s] BadRequest (update_type=%s): %s",
-                request_id,
-                update_type,
-                error,
-            )
+            logger.warning("[%s] BadRequest (update_type=%s): %s %s", request_id, update_type, error, update)
             return
 
         case TimedOut() | NetworkError():

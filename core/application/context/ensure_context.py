@@ -1,5 +1,5 @@
 """Use case для обеспечения контекста (user, chat, chat_user) в одной транзакции."""
-
+import logging
 from collections.abc import Callable
 
 from telegram import Chat, User
@@ -10,6 +10,7 @@ from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.chat_user_repository import ChatUserRepository
 from core.infrastructure.repositories.user_repository import UserRepository
 
+logger = logging.getLogger(__name__)
 UowFactory = Callable[[], DbUnitOfWork]
 
 
@@ -58,7 +59,7 @@ class EnsureContextUseCase:
             user = await user_repo.get_by_tg_id(tg_user.id)
             if not user:
                 user = await user_repo.upsert(tg_user)
-
+            logger.debug(f"Received user: {user} by {tg_user.id}")
             # 2. Обеспечиваем существование чата
             chat = await chat_repo.get_by_tg_id(tg_chat.id)
             if not chat:

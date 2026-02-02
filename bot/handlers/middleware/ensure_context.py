@@ -1,9 +1,12 @@
 """Middleware для обеспечения контекста бота."""
+import logging
 
 from telegram import Chat, Update, User
 from telegram.ext import CallbackContext
 
 from core.container import Container
+
+logger = logging.getLogger(__name__)
 
 
 async def ensure_context(update: Update, context: CallbackContext):
@@ -24,9 +27,9 @@ async def ensure_context(update: Update, context: CallbackContext):
     container: Container = context.bot_data.get('container')
     if not container:
         raise RuntimeError("Container not initialized. Ensure container is set in bot_data during startup.")
-
+    logger.debug(f"User: {user.username}, chat: {chat.title}, chat_id: {chat.id}")
     # Используем объединенный use case для выполнения всех операций в одной транзакции
     ensure_context_use_case = container.get_ensure_context_use_case()
     bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
-
+    logger.debug(bot_context)
     context.bot_data['ctx'] = bot_context

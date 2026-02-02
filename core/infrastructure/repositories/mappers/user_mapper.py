@@ -1,7 +1,10 @@
+import logging
+
 from asyncpg import Record
 
 from core.dto.user_dto import UserDTO
 
+logger = logging.getLogger(__name__)
 
 def map_user(record: Record) -> UserDTO:
     return UserDTO(
