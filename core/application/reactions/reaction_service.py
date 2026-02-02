@@ -25,10 +25,14 @@ class ReactionService:
         self.ledger_repo = ledger_repo
         self.policy = policy
 
-    async def add_reaction(self, *, ctx: BotContextDTO, chat_id: int, message, emoji: str):
-        """
-        Добавить реакцию и применить соответствующие изменения рейтинга.
+    # ---------- PUBLIC API ----------
 
+    async def add_reaction(self, *, ctx: BotContextDTO, chat_id: int, message, emoji: str):
+        kind = self.policy.kind(emoji)
+        if kind is ReactionKind.NEUTRAL:
+            return
+
+        """
         Args:
             ctx: Контекст бота
             chat_id: ID чата
@@ -65,25 +69,19 @@ class ReactionService:
             )
         )
 
-        # Применяем изменения рейтинга
-        await self._apply_rating_for_reaction(
+        await self._apply_added_reaction(
             ctx=ctx,
             chat_id=chat_id,
             message=message,
             emoji=emoji,
+            kind=kind,
         )
 
     async def remove_reaction(self, *, ctx: BotContextDTO, chat_id: int, message, emoji: str):
-        """
-        Удалить реакцию и отменить соответствующие изменения рейтинга.
+        kind = self.policy.kind(emoji)
+        if kind is ReactionKind.NEUTRAL:
+            return
 
-        Args:
-            ctx: Контекст бота
-            chat_id: ID чата
-            message: Объект сообщения
-            emoji: Эмодзи реакции
-        """
-        # Удаляем реакцию из базы
         removed = await self.reaction_repo.delete_if_exists(
             chat_id=chat_id,
             message_id=message.tg_message_id,
@@ -92,18 +90,68 @@ class ReactionService:
         )
 
         if not removed:
-            logger.debug(
-                f"Reaction '{emoji}' not found for removal: user {ctx.user.id} on message {message.tg_message_id}"
-            )
             return
 
-        # Получаем дельту рейтинга для этой реакции
-        delta = self._get_delta(emoji)
+        await self._apply_removed_reaction(
+            ctx=ctx,
+            chat_id=chat_id,
+            message=message,
+            emoji=emoji,
+            kind=kind,
+        )
+
+    # ---------- INTERNAL LOGIC ----------
+
+    async def _apply_added_reaction(
+        self,
+        *,
+        ctx: BotContextDTO,
+        chat_id: int,
+        message,
+        emoji: str,
+        kind: ReactionKind,
+    ):
+        delta = self.policy.rating_delta(emoji)
         if delta == 0:
-            logger.debug(f"No rating change for removing reaction '{emoji}': delta is zero")
             return
 
-        # Отмечаем соответствующую запись в ledger как отмененную
+        new_balance = await self.rating_repo.add(
+            chat_id,
+            message.author_user_id,
+            delta,
+        )
+
+        await self.ledger_repo.add(
+            RatingLedgerEntryDTO(
+                chat_id=chat_id,
+                user_id=message.author_user_id,
+                initiator_user_id=ctx.user.id,
+                amount=delta,
+                balance_after=new_balance,
+                operation_type="reaction",
+                operation_subtype=kind.value,
+                source_type="message",
+                source_id=message.id,
+                meta={"emoji": emoji},
+            )
+        )
+
+        if kind is ReactionKind.POSITIVE:
+            await self._apply_tax_if_needed(ctx, chat_id, message, emoji)
+
+    async def _apply_removed_reaction(
+        self,
+        *,
+        ctx: BotContextDTO,
+        chat_id: int,
+        message,
+        emoji: str,
+        kind: ReactionKind,
+    ):
+        delta = self.policy.rating_delta(emoji)
+        if delta == 0:
+            return
+
         await self.ledger_repo.mark_as_reverted_by_emoji(
             source_type="message",
             source_id=message.id,
@@ -113,14 +161,12 @@ class ReactionService:
             emoji=emoji,
         )
 
-        # Обновляем рейтинг автора сообщения (уменьшаем на delta)
         new_balance = await self.rating_repo.add(
             chat_id,
             message.author_user_id,
             -delta,
         )
 
-        # Записываем компенсирующую запись в ledger
         await self.ledger_repo.add(
             RatingLedgerEntryDTO(
                 chat_id=chat_id,
@@ -128,105 +174,37 @@ class ReactionService:
                 initiator_user_id=ctx.user.id,
                 amount=-delta,
                 balance_after=new_balance,
-                operation_type="adjustment",
-                operation_subtype="reaction_revert",
+                operation_type="reaction_revert",
+                operation_subtype=kind.value,
                 source_type="message",
                 source_id=message.id,
                 meta={"emoji": emoji},
             )
         )
-
-        logger.info(
-            f"Reaction '{emoji}' removed: "
-            f"user {ctx.user.id} removed reaction from message by user {message.author_user_id} "
-            f"in chat {chat_id}. Rating changed by {-delta}"
-        )
-
-    async def _apply_rating_for_reaction(self, *, ctx: BotContextDTO, chat_id: int, message, emoji: str):
-        """
-        Применить изменения рейтинга для добавленной реакции.
-
-        Args:
-            ctx: Контекст бота
-            chat_id: ID чата
-            message: Объект сообщения
-            emoji: Эмодзи реакции
-        """
-        delta = self._get_delta(emoji)
-        if delta == 0:
-            logger.debug(f"No rating change for reaction '{emoji}': delta is zero")
-            return
-
-        # Обновляем рейтинг автора сообщения
-        new_balance = await self.rating_repo.add(
-            chat_id,
-            message.author_user_id,
-            delta,
-        )
-
-        # Записываем в ledger
-        await self.ledger_repo.add(
-            RatingLedgerEntryDTO(
-                chat_id=chat_id,
-                user_id=message.author_user_id,
-                initiator_user_id=ctx.user.id,
-                amount=delta,
-                balance_after=new_balance,
-                operation_type="reaction",
-                operation_subtype="added",
-                source_type="message",
-                source_id=message.id,
-                meta={"emoji": emoji},
-            )
-        )
-
-        logger.info(
-            f"Reaction '{emoji}' added: "
-            f"user {ctx.user.id} reacted to message by user {message.author_user_id} "
-            f"in chat {chat_id}. Rating changed by {delta}"
-        )
-
-        # Применяем налог, если он положительный
-        await self._apply_tax_if_needed(ctx, chat_id, message, emoji)
 
     async def _apply_tax_if_needed(self, ctx: BotContextDTO, chat_id: int, message, emoji: str):
-        """
-        Применить налог к пользователю за реакцию, если налог положительный.
-
-        Args:
-            ctx: Контекст бота
-            chat_id: ID чата
-            message: Объект сообщения
-            emoji: Эмодзи реакции
-        """
         tax = self.policy.tax(emoji)
         if tax <= 0:
             return
 
-        # Обновляем рейтинг пользователя, который поставил реакцию
-        tax_balance = await self.rating_repo.add(
+        balance = await self.rating_repo.add(
             chat_id,
             ctx.user.id,
             -tax,
         )
 
-        # Записываем налог в ledger
         await self.ledger_repo.add(
             RatingLedgerEntryDTO(
                 chat_id=chat_id,
                 user_id=ctx.user.id,
                 initiator_user_id=ctx.user.id,
                 amount=-tax,
-                balance_after=tax_balance,
+                balance_after=balance,
                 operation_type="tax",
-                operation_subtype="reaction_tax",
+                operation_subtype="reaction",
                 source_type="message",
                 source_id=message.id,
-                meta={"reaction": emoji, "emoji": emoji},
+                meta={"emoji": emoji},
             )
         )
 
-        logger.info(f"Reaction tax applied: user {ctx.user.id} paid tax {tax} for reaction '{emoji}'")
-
-    def _get_delta(self, emoji: str) -> int:
-        return self.policy.rating_delta(emoji)
