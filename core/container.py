@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from core.application.chat_lifecycle.bot_added_to_chat import BotAddedToChatUseCase
 from core.domain.messages.chat_message_policy import ChatMessagePolicy
 from core.domain.messages.default_chat_message_policy import DefaultChatMessagePolicy
 from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
@@ -92,6 +93,9 @@ class Container:
             uow_factory=self.get_uow_factory(),
             message_policy=self.get_message_policy(),
         )
+
+    def get_bot_added_to_chat_use_case(self) -> BotAddedToChatUseCase:
+        return BotAddedToChatUseCase(self.get_uow_factory())
 
     def get_reaction_policy(self) -> ReactionPolicy:
         """

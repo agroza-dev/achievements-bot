@@ -11,6 +11,7 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
+from bot.handlers.bot_membership_handler import bot_membership_handler
 from bot.handlers.ensure_context_handler import ensure_context_handler
 from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
@@ -81,7 +82,10 @@ def main():
         .post_shutdown(on_shutdown)
         .build()
     )
-
+    application.add_handler(
+        MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, bot_membership_handler),
+        group=0,
+    )
     # Handlers
     application.add_handler(
         MessageHandler(filters.ALL, ensure_context_handler),
