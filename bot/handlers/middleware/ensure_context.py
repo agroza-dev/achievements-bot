@@ -33,8 +33,10 @@ async def ensure_context(update: Update, context: CallbackContext):
     if chat.type != "private":
         bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
         logger.debug(bot_context)
-        context.bot_data['ctx'] = bot_context
+        # Используем chat_data для хранения контекста, ключ - user_id
+        # Это предотвращает утечку контекста между пользователями в одном чате
+        context.chat_data.setdefault('user_contexts', {})[user.id] = bot_context
         logger.debug(f"Context is resolved for: {user.username}, chat: {chat.title}, chat_id: {chat.id}")
     else:
         logger.debug('Context is not resolved in private chat')
-        context.bot_data['ctx'] = None
+        context.chat_data.setdefault('user_contexts', {})[user.id] = None

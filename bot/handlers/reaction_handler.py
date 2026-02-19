@@ -12,7 +12,13 @@ logger = logging.getLogger(__name__)
 
 async def reaction_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработать реакцию на сообщение."""
-    ctx: BotContextDTO = context.bot_data.get("ctx")
+    reaction = update.message_reaction
+    user_id = reaction.user.id if reaction and reaction.user else None
+
+    # Читаем контекст из chat_data по user_id
+    user_contexts = context.chat_data.get('user_contexts', {})
+    ctx: BotContextDTO | None = user_contexts.get(user_id) if user_id else None
+
     if not ctx:
         logger.error("Bot context not found in reaction handler")
         return

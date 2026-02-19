@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ctx: BotContextDTO = context.bot_data.get("ctx")
+    # Читаем контекст из chat_data по user_id
+    user = update.effective_user
+    user_id = user.id if user else None
+    user_contexts = context.chat_data.get('user_contexts', {})
+    ctx: BotContextDTO | None = user_contexts.get(user_id) if user_id else None
+
     logger.info("Received update: %s", update)
 
     chat = update.effective_chat
@@ -72,6 +77,33 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=command.initiator_user_id,
             text="Недостаточно очков для трансфера",
+        )
+
+    elif transfer_result.status is TransferStatus.QUIET_STOP:
+        await context.bot.setMessageReaction(
+            message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
+        )
+        await context.bot.send_message(
+            chat_id=command.initiator_user_id,
+            text="❌ Получатель не найден. Упомяните пользователя @username или ответьте на его сообщение",
+        )
+
+    elif transfer_result.status is TransferStatus.NOT_FOUND:
+        await context.bot.setMessageReaction(
+            message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
+        )
+        await context.bot.send_message(
+            chat_id=command.initiator_user_id,
+            text="Трансфер не найден. Возможно, вы не указали получателя?",
+        )
+
+    elif transfer_result.status is TransferStatus.INVALID:
+        await context.bot.setMessageReaction(
+            message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
+        )
+        await context.bot.send_message(
+            chat_id=command.initiator_user_id,
+            text="Неверный формат трансфера",
         )
 
 

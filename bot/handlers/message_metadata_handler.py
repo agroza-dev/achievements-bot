@@ -18,11 +18,19 @@ async def message_metadata_handler(update: Update, context: ContextTypes.DEFAULT
         update: Telegram update объект
         context: Контекст обработчика бота
     """
-    ctx: BotContextDTO = context.bot_data["ctx"]
+    # Читаем контекст из chat_data по user_id
+    user = update.effective_user
+    user_id = user.id if user else None
+    user_contexts = context.chat_data.get('user_contexts', {})
+    ctx: BotContextDTO | None = user_contexts.get(user_id) if user_id else None
 
     chat = update.effective_chat
     if chat.type == "private":
         logger.debug('Skipped counting metadata for private chat')
+        return
+
+    if not ctx:
+        logger.error("Bot context not found in message_metadata_handler")
         return
 
     message: Message = update.message
