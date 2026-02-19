@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from core.dto.rating_ledger_dto import RatingLedgerHistoryEntryDTO
 
@@ -19,9 +19,9 @@ def ledger_entry(
         amount=amount,
         balance_after=balance_after,
         operation_type="reaction",
-        operation_subtype="added",
+        operation_subtype="positive",
         source_type="message",
         source_id=1,
         meta={},
-        created_at=created_at or datetime.utcnow(),
+        created_at=created_at or datetime.now(UTC),
     )
