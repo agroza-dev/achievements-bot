@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from core.application.reactions.reaction_intent import ReactionKind
 from core.application.reactions.reaction_service import ReactionService
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.dto.bot_context import BotContextDTO
@@ -115,6 +116,7 @@ class TestReactionServiceAddReaction:
         # Arrange
         chat_id = 1
         emoji = "👍"
+        mock_policy.kind.return_value = ReactionKind.POSITIVE
 
         # Act
         await service.add_reaction(ctx=ctx, chat_id=chat_id, message=message, emoji=emoji)
@@ -141,7 +143,7 @@ class TestReactionServiceAddReaction:
         ledger_entry = mock_ledger_repo.add.call_args[0][0]
         assert isinstance(ledger_entry, RatingLedgerEntryDTO)
         assert ledger_entry.operation_type == "reaction"
-        assert ledger_entry.operation_subtype == "added"
+        assert ledger_entry.operation_subtype == ReactionKind.POSITIVE.value
 
     @pytest.mark.asyncio
     async def test_add_reaction_policy_forbids(self, service, mock_reaction_repo, mock_rating_repo, mock_ledger_repo, mock_policy, ctx, message):
@@ -194,6 +196,7 @@ class TestReactionServiceAddReaction:
     async def test_add_reaction_with_tax(self, service, mock_reaction_repo, mock_rating_repo, mock_ledger_repo, mock_policy, ctx, message):
         """Добавление реакции с налогом"""
         # Arrange
+        mock_policy.kind.return_value = ReactionKind.POSITIVE
         mock_policy.tax.return_value = 5
 
         # Act
@@ -240,6 +243,7 @@ class TestReactionServiceRemoveReaction:
         """Успешное удаление реакции"""
         # Arrange
         emoji = "👍"
+        mock_policy.kind.return_value = ReactionKind.POSITIVE
         mock_rating_repo.add.return_value = 99
 
         # Act
@@ -261,8 +265,8 @@ class TestReactionServiceRemoveReaction:
 
         mock_ledger_repo.add.assert_called_once()
         ledger_entry = mock_ledger_repo.add.call_args[0][0]
-        assert ledger_entry.operation_type == "adjustment"
-        assert ledger_entry.operation_subtype == "reaction_revert"
+        assert ledger_entry.operation_type == "reaction_revert"
+        assert ledger_entry.operation_subtype == ReactionKind.POSITIVE.value
 
     @pytest.mark.asyncio
     async def test_remove_reaction_not_found(self, service, mock_reaction_repo, mock_rating_repo, mock_ledger_repo, mock_policy, ctx, message):
