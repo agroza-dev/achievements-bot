@@ -19,6 +19,16 @@ class UserRepository:
         record = await self.conn.fetchrow(query, tg_id)
         return map_user(record) if record else None
 
+    async def get_id_by_tg_id(self, tg_user_id: int) -> int | None:
+        return await self.conn.fetchval(
+            """
+            SELECT id
+            FROM users
+            WHERE tg_id = $1
+            """,
+            tg_user_id,
+        )
+
     async def upsert(self, user: User) -> UserDTO:
         query = """
             INSERT INTO users (tg_id, username, first_name, last_name, is_bot)

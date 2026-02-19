@@ -47,7 +47,7 @@ class EnsureContextUseCase:
         """
         if not tg_user or not tg_chat:
             raise ValueError("User and chat must be provided")
-
+        logger.debug(f"Try to load context for User: {tg_user}, chat: {tg_chat}")
         # Используем одну транзакцию для всех операций
         async with self._uow_factory() as uow:
             # Получаем репозитории для работы в одной транзакции

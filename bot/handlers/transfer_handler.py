@@ -16,6 +16,11 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ctx: BotContextDTO = context.bot_data.get("ctx")
     logger.info("Received update: %s", update)
 
+    chat = update.effective_chat
+    if chat.type == "private":
+        logger.debug("Skipped counting metadata for private chat")
+        return
+
     if not ctx:
         logger.error("Bot context not found in transfer handler")
         return

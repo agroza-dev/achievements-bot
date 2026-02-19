@@ -2,8 +2,9 @@ import json
 
 import asyncpg
 
-from core.dto.rating_ledger_dto import RatingLedgerEntryDTO, RatingLedgerRecordDTO
+from core.dto.rating_ledger_dto import RatingLedgerEntryDTO, RatingLedgerHistoryEntryDTO, RatingLedgerRecordDTO
 from core.infrastructure.repositories.mappers.rating_ledger_mapper import (
+    map_rating_ledger_history_entry,
     map_rating_ledger_record_to_dto,
 )
 
@@ -44,7 +45,9 @@ class DbRatingLedgerRepository:
             json.dumps(entry.meta),
         )
 
-    async def find_by_source(self, source_type: str, source_id: int, chat_id: int, user_id: int) -> list[RatingLedgerRecordDTO] | None:
+    async def find_by_source(
+        self, source_type: str, source_id: int, chat_id: int, user_id: int
+    ) -> list[RatingLedgerRecordDTO] | None:
         """Найти записи в rating_ledger по source_type и source_id"""
         rows = await self.conn.fetch(
             """
@@ -60,12 +63,13 @@ class DbRatingLedgerRepository:
             source_type,
             source_id,
             chat_id,
-            user_id
+            user_id,
         )
         return [map_rating_ledger_record_to_dto(row) for row in rows]
 
-
-    async def mark_as_reverted_by_emoji(self, source_type: str, source_id: int, chat_id: int, user_id: int, reverted_by_id: int, emoji: str) -> None:
+    async def mark_as_reverted_by_emoji(
+        self, source_type: str, source_id: int, chat_id: int, user_id: int, reverted_by_id: int, emoji: str
+    ) -> None:
         """Пометить запись в rating_ledger как отмененную по эмодзи"""
         await self.conn.execute(
             """
@@ -87,5 +91,43 @@ class DbRatingLedgerRepository:
             chat_id,
             user_id,
             reverted_by_id,
-            emoji
+            emoji,
         )
+
+    async def list_for_user(
+        self,
+        *,
+        user_id: int,
+        chat_id: int | None,
+        limit: int,
+        offset: int,
+    ) -> list[RatingLedgerHistoryEntryDTO]:
+        query = """
+            SELECT
+                chat_id,
+                user_id,
+                initiator_user_id,
+                amount,
+                balance_after,
+                operation_type,
+                operation_subtype,
+                source_type,
+                source_id,
+                meta,
+                created_at
+            FROM rating_ledger
+            WHERE user_id = $1
+              AND ($2::BIGINT IS NULL OR chat_id = $2)
+            ORDER BY created_at DESC
+            LIMIT $3 OFFSET $4
+        """
+
+        rows = await self.conn.fetch(
+            query,
+            user_id,
+            chat_id,
+            limit,
+            offset,
+        )
+
+        return [map_rating_ledger_history_entry(row) for row in rows]

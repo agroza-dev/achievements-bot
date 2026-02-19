@@ -1,5 +1,7 @@
 import asyncpg
 
+from core.dto.user_rating_dto import UserRatingDTO
+
 
 class DbRatingRepository:
     def __init__(self, conn: asyncpg.Connection):
@@ -48,3 +50,23 @@ class DbRatingRepository:
             user_id,
         )
         return result or 0
+
+    async def get_top(
+        self,
+        *,
+        chat_id: int,
+        limit: int,
+    ) -> list[UserRatingDTO]:
+        query = """
+            SELECT user_id, rating
+            FROM chat_users
+            WHERE chat_id = :chat_id
+            ORDER BY rating DESC
+            LIMIT :limit
+                """
+        rows = await self.conn.fetch(
+            query,
+            chat_id,
+            limit,
+        )
+        return [UserRatingDTO(row['user_id'], row['rating']) for row in rows]

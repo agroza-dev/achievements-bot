@@ -3,6 +3,7 @@
 import httpx
 from telegram.ext import (
     ApplicationBuilder,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
     MessageReactionHandler,
@@ -16,6 +17,7 @@ from bot.handlers.ensure_context_handler import ensure_context_handler
 from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
 from bot.handlers.message_metadata_handler import message_metadata_handler
+from bot.handlers.personal_stats_handler import personal_stats_callback_handler, personal_stats_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from bot.handlers.transfer_handler import transfer_handler
@@ -107,6 +109,14 @@ def main():
 
     application.add_handler(MessageReactionHandler(reaction_handler), group=2)
     application.add_handler(CommandHandler("start", start_handler), group=2)
+    application.add_handler(CommandHandler("stats", personal_stats_handler), group=2)
+    application.add_handler(
+        CallbackQueryHandler(
+            personal_stats_callback_handler,
+            pattern="^stats:chat:",
+        ),
+        group=2,
+    )
 
     application.add_handler(MessageHandler(filters.TEXT, transfer_handler), group=3)
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 
@@ -16,6 +17,9 @@ class RatingLedgerEntryDTO:
     source_id: int | None
     meta: dict[str, Any]
 
+@dataclass(slots=True)
+class RatingLedgerHistoryEntryDTO(RatingLedgerEntryDTO):
+    created_at: datetime
 
 @dataclass(slots=True)
 class RatingLedgerRecordDTO:

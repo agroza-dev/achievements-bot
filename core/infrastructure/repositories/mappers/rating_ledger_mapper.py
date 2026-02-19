@@ -3,7 +3,7 @@ from typing import Any
 
 from asyncpg import Record
 
-from core.dto.rating_ledger_dto import RatingLedgerEntryDTO, RatingLedgerRecordDTO
+from core.dto.rating_ledger_dto import RatingLedgerEntryDTO, RatingLedgerHistoryEntryDTO, RatingLedgerRecordDTO
 
 
 def map_rating_ledger_entry(record: Record) -> RatingLedgerEntryDTO:
@@ -25,6 +25,27 @@ def map_rating_ledger_entry(record: Record) -> RatingLedgerEntryDTO:
         source_type=record["source_type"],
         source_id=record["source_id"],
         meta=meta,
+    )
+
+def map_rating_ledger_history_entry(record: Record) -> RatingLedgerHistoryEntryDTO:
+    meta = record["meta"]
+    if isinstance(meta, str):
+        meta = json.loads(meta)
+    elif meta is None:
+        meta = {}
+
+    return RatingLedgerHistoryEntryDTO(
+        chat_id=record["chat_id"],
+        user_id=record["user_id"],
+        initiator_user_id=record["initiator_user_id"],
+        amount=record["amount"],
+        balance_after=record["balance_after"],
+        operation_type=record["operation_type"],
+        operation_subtype=record["operation_subtype"],
+        source_type=record["source_type"],
+        source_id=record["source_id"],
+        meta=meta,
+        created_at=record["created_at"],
     )
 
 

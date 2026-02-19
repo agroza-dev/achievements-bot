@@ -4,11 +4,14 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from core.application.chat_lifecycle.bot_added_to_chat import BotAddedToChatUseCase
+from core.application.stats.get_chat_leaderboard import GetChatLeaderboardUseCase
+from core.application.stats.get_personal_stats import GetPersonalStatsUseCase
+from core.application.stats.get_user_chats import GetUserChatsUseCase
+from core.application.transfers.transfer_points_use_case import TransferPointsUseCase
 from core.domain.messages.chat_message_policy import ChatMessagePolicy
 from core.domain.messages.default_chat_message_policy import DefaultChatMessagePolicy
 from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
 from core.domain.reactions.reaction_policy import ReactionPolicy
-from core.application.transfers.transfer_points_use_case import TransferPointsUseCase
 from core.domain.transfers.default_transfer_policy import DefaultTransferPolicy
 from core.domain.transfers.transfer_policy import TransferPolicy
 from core.infrastructure.database import DatabaseManager, DbUnitOfWork
@@ -124,3 +127,18 @@ class Container:
     def get_transfer_points_use_case(self) -> TransferPointsUseCase:
         return TransferPointsUseCase(self.get_uow_factory(), self.get_transfer_policy())
 
+
+    def get_personal_stats_use_case(self) -> GetPersonalStatsUseCase:
+        return GetPersonalStatsUseCase(
+            uow_factory=self.get_uow_factory(),
+        )
+
+    def get_chat_leaderboard_use_case(self) -> GetChatLeaderboardUseCase:
+        return GetChatLeaderboardUseCase(
+            uow_factory=self.get_uow_factory(),
+        )
+
+    def get_user_chats_use_case(self) -> GetUserChatsUseCase:
+        return GetUserChatsUseCase(
+            uow_factory=self.get_uow_factory(),
+        )

@@ -1,6 +1,8 @@
+from telegram.constants import ReactionEmoji
+
 from core.application.reactions.reaction_intent import ReactionKind
 from core.domain.reactions.reaction_policy import ReactionPolicy
-from telegram.constants import ReactionEmoji
+
 
 class DefaultReactionPolicy(ReactionPolicy):
     MAX_REACTIONS = 3

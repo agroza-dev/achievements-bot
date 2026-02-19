@@ -30,6 +30,11 @@ async def ensure_context(update: Update, context: CallbackContext):
     logger.debug(f"User: {user.username}, chat: {chat.title}, chat_id: {chat.id}")
     # Используем объединенный use case для выполнения всех операций в одной транзакции
     ensure_context_use_case = container.get_ensure_context_use_case()
-    bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
-    logger.debug(bot_context)
-    context.bot_data['ctx'] = bot_context
+    if chat.type != "private":
+        bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
+        logger.debug(bot_context)
+        context.bot_data['ctx'] = bot_context
+        logger.debug(f"Context is resolved for: {user.username}, chat: {chat.title}, chat_id: {chat.id}")
+    else:
+        logger.debug('Context is not resolved in private chat')
+        context.bot_data['ctx'] = None

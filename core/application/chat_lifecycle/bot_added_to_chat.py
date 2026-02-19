@@ -18,7 +18,9 @@ class BotAddedToChatUseCase:
             chat_repo: ChatRepository = uow.get_repo(ChatRepository)
             chat_user_repo: ChatUserRepository = uow.get_repo(ChatUserRepository)
 
-            chat = await chat_repo.upsert(tg_chat)
+            chat = await chat_repo.get_by_tg_id(tg_chat.id)
+            if not chat:
+                chat = await chat_repo.upsert(tg_chat)
 
             # гарантируем, что бот есть в users
             bot_user = await user_repo.get_by_tg_id(tg_chat.id)

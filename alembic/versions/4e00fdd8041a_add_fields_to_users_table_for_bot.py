@@ -1,3 +1,4 @@
+# ruff: noqa
 """Add fields to users table for bot
 
 Revision ID: 4e00fdd8041a

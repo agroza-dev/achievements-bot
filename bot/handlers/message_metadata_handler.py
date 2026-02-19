@@ -1,4 +1,5 @@
 """Handler для обработки метаданных сообщений."""
+import logging
 
 from telegram import Message, MessageOrigin, Update
 from telegram.ext import ContextTypes
@@ -7,6 +8,7 @@ from core.container import Container
 from core.dto.bot_context import BotContextDTO
 from core.dto.chat_message_create_dto import ChatMessageCreateDTO
 
+logger = logging.getLogger(__name__)
 
 async def message_metadata_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -17,6 +19,11 @@ async def message_metadata_handler(update: Update, context: ContextTypes.DEFAULT
         context: Контекст обработчика бота
     """
     ctx: BotContextDTO = context.bot_data["ctx"]
+
+    chat = update.effective_chat
+    if chat.type == "private":
+        logger.debug('Skipped counting metadata for private chat')
+        return
 
     message: Message = update.message
 

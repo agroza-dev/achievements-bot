@@ -2,6 +2,7 @@ import asyncpg
 from telegram import Chat
 
 from core.dto.chat_dto import ChatDTO
+from core.dto.chat_user_dto import UserChatDTO
 from core.infrastructure.repositories.mappers.chat_mapper import map_chat
 
 
@@ -15,6 +16,35 @@ class ChatRepository:
         record = await self.conn.fetchrow(query, tg_id)
 
         return map_chat(record) if record else None
+
+    async def list_for_user(
+        self,
+        *,
+        user_id: int,
+    ) -> list[UserChatDTO]:
+        rows = await self.conn.fetch(
+            """
+            SELECT
+                c.id,
+                c.tg_id as chat_id,
+                c.title
+            FROM chat_users cu
+                     JOIN chats c ON c.id = cu.chat_id
+            WHERE cu.user_id = $1
+              AND cu.is_active = true
+            ORDER BY c.title
+            """,
+            user_id,
+        )
+
+        return [
+            UserChatDTO(
+                id=row["id"],
+                chat_id=row["chat_id"],
+                title=row["title"],
+            )
+            for row in rows
+        ]
 
     async def upsert(self, chat: Chat) -> ChatDTO:
         query = """
