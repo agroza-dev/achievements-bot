@@ -68,6 +68,7 @@ fixable = ["ALL"]
 unfixable = []
 ignore = [
     "E501",  # line too long (handled by line-length)
+    "RUF001",
     "RUF002",
     "RUF003",
 ]
