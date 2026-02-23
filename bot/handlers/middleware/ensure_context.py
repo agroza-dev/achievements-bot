@@ -32,7 +32,6 @@ async def ensure_context(update: Update, context: CallbackContext):
     ensure_context_use_case = container.get_ensure_context_use_case()
     if chat.type != "private":
         bot_context = await ensure_context_use_case.execute(tg_user=user, tg_chat=chat)
-        logger.debug(bot_context)
         # Используем chat_data для хранения контекста, ключ - user_id
         # Это предотвращает утечку контекста между пользователями в одном чате
         context.chat_data.setdefault('user_contexts', {})[user.id] = bot_context

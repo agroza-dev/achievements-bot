@@ -11,6 +11,8 @@ from telegram.error import (
 )
 from telegram.ext import ContextTypes
 
+from utils.logger import prettify
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +43,13 @@ async def error_handler(update: Update | None, context: ContextTypes.DEFAULT_TYP
             return
 
         case BadRequest():
-            logger.warning("[%s] BadRequest (update_type=%s): %s %s", request_id, update_type, error, update)
+            logger.warning(
+                "[%s] BadRequest (update_type=%s): %s\nUpdate: %s",
+                request_id,
+                update_type,
+                error,
+                prettify(update),
+            )
             return
 
         case TimedOut() | NetworkError():

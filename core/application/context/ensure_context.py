@@ -9,6 +9,7 @@ from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.chat_user_repository import ChatUserRepository
 from core.infrastructure.repositories.user_repository import UserRepository
+from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 UowFactory = Callable[[], DbUnitOfWork]
@@ -47,7 +48,7 @@ class EnsureContextUseCase:
         """
         if not tg_user or not tg_chat:
             raise ValueError("User and chat must be provided")
-        logger.debug(f"Try to load context for User: {tg_user}, chat: {tg_chat}")
+        logger.debug(f"Try to load context for User: {prettify(tg_user)}, chat: {prettify(tg_chat)}")
         # Используем одну транзакцию для всех операций
         async with self._uow_factory() as uow:
             # Получаем репозитории для работы в одной транзакции
@@ -59,7 +60,7 @@ class EnsureContextUseCase:
             user = await user_repo.get_by_tg_id(tg_user.id)
             if not user:
                 user = await user_repo.upsert(tg_user)
-            logger.debug(f"Received user: {user} by {tg_user.id}")
+            logger.debug(f"Received user: {prettify(user)} by {tg_user.id}")
             # 2. Обеспечиваем существование чата
             chat = await chat_repo.get_by_tg_id(tg_chat.id)
             if not chat:

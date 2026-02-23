@@ -8,6 +8,7 @@ from core.application.transfers.transfer_result import TransferStatus
 from core.container import Container
 from core.dto.bot_context import BotContextDTO
 from core.dto.transfer_dto import TransferCommandDTO
+from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,10 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_contexts = context.chat_data.get('user_contexts', {})
     ctx: BotContextDTO | None = user_contexts.get(user_id) if user_id else None
 
-    logger.info("Received update: %s", update)
+    logger.info("Received update (message_id=%s, chat=%s, from=%s)",
+                update.message.message_id if update.message else None,
+                update.effective_chat.title if update.effective_chat else None,
+                update.effective_user.username if update.effective_user else None)
 
     chat = update.effective_chat
     if chat.type == "private":
@@ -50,10 +54,10 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_to_message_id=(message.reply_to_message.message_id if message.reply_to_message else None),
         mentioned_usernames=mentioned_usernames,
     )
-    logger.debug("Transfer command: %s", command)
+    logger.debug("Transfer command:\n%s", prettify(command))
     use_case = container.get_transfer_points_use_case()
     transfer_result = await use_case.execute(command)
-    logger.debug("Transfer result: %s", transfer_result)
+    logger.debug("Transfer result:\n%s", prettify(transfer_result))
     if transfer_result.status is TransferStatus.SUCCESS:
         await context.bot.setMessageReaction(
             message.chat_id, message.message_id, reaction=[ReactionEmoji.WRITING_HAND]
@@ -80,22 +84,15 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif transfer_result.status is TransferStatus.QUIET_STOP:
-        await context.bot.setMessageReaction(
-            message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
-        )
-        await context.bot.send_message(
-            chat_id=command.initiator_user_id,
-            text="❌ Получатель не найден. Упомяните пользователя @username или ответьте на его сообщение",
-        )
+        logger.debug("Transfer is not processable. Just ignored")
+        # Не каждое сообщение должно быть трансфером.
+        # Если трансфер не нашли, значит его там нети не нужно его никак в этом handler обрабатывать
 
     elif transfer_result.status is TransferStatus.NOT_FOUND:
-        await context.bot.setMessageReaction(
-            message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
-        )
-        await context.bot.send_message(
-            chat_id=command.initiator_user_id,
-            text="Трансфер не найден. Возможно, вы не указали получателя?",
-        )
+        logger.debug("Transfer not found in message. Just ignored")
+        # Не каждое сообщение должно быть трансфером.
+        # Если трансфер не нашли, значит его там нети не нужно его никак в этом handler обрабатывать
+        pass
 
     elif transfer_result.status is TransferStatus.INVALID:
         await context.bot.setMessageReaction(

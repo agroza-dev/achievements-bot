@@ -3,6 +3,7 @@ import logging
 from asyncpg import Record
 
 from core.dto.user_dto import UserDTO
+from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 
@@ -17,5 +18,5 @@ def map_user(record: Record) -> UserDTO:
         created_at=record["created_at"],
         updated_at=record["updated_at"],
     )
-    logger.debug(f"Mapped user {dto} by record {record}")
+    logger.debug(f"Mapped user {prettify(dto)}")
     return dto
