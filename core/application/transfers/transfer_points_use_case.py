@@ -4,12 +4,14 @@ from collections.abc import Callable
 from core.application.transfers.transfer_parser import TransferParser
 from core.application.transfers.transfer_result import TransferResult, TransferStatus
 from core.application.transfers.transfer_service import TransferService
+from core.domain.rate_limiting.default_policies import DefaultRateLimitPolicies
 from core.domain.transfers.errors import RecipientNotFoundError
 from core.domain.transfers.transfer_policy import TransferPolicy
 from core.dto.transfer_dto import TransferCommandDTO
 from core.dto.user_dto import UserDTO
 from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_message_repository import DbChatMessageRepository
+from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.user_repository import UserRepository
@@ -60,12 +62,32 @@ class TransferPointsUseCase:
         self,
         uow_factory: UowFactory,
         policy: TransferPolicy,
+        rate_limiter: InMemoryRateLimiter | None = None,
     ):
         self.uow_factory = uow_factory
         self.policy = policy
+        self.rate_limiter = rate_limiter or InMemoryRateLimiter()
 
     async def execute(self, command: TransferCommandDTO) -> TransferResult:
-        # 1. Парсим намерение на трансфер очков
+        # 1. Проверяем rate limit
+        rate_limit_result = await self.rate_limiter.check_rate_limit(
+            user_id=command.initiator_user_id,
+            action="transfer",
+            policy=DefaultRateLimitPolicies.TRANSFER,
+        )
+
+        if not rate_limit_result.allowed:
+            logger.warning(
+                "Rate limit exceeded for user %s (transfer): %s",
+                command.initiator_user_id,
+                rate_limit_result.message,
+            )
+            return TransferResult(
+                status=TransferStatus.FORBIDDEN,
+                message=rate_limit_result.message or "Слишком много запросов",
+            )
+
+        # 2. Парсим намерение на трансфер очков
         try:
             intent = TransferParser.parse(command.raw_text)
             logger.debug("Parsed intent: %s", intent)

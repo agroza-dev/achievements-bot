@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import pytest
 
 from core.application.stats.get_personal_stats import GetPersonalStatsUseCase
@@ -63,11 +65,14 @@ async def test_filters_by_chat():
 
 @pytest.mark.asyncio
 async def test_limit_and_offset():
+    from datetime import datetime, timedelta
+
+    now = datetime.now(UTC)
     repo = FakeRatingLedgerRepo(
         entries=[
-            ledger_entry(user_id=1, amount=10),
-            ledger_entry(user_id=1, amount=20),
-            ledger_entry(user_id=1, amount=30),
+            ledger_entry(user_id=1, amount=10, created_at=now - timedelta(seconds=3)),
+            ledger_entry(user_id=1, amount=20, created_at=now - timedelta(seconds=2)),
+            ledger_entry(user_id=1, amount=30, created_at=now - timedelta(seconds=1)),
         ]
     )
 
@@ -82,6 +87,7 @@ async def test_limit_and_offset():
     )
 
     assert len(result.entries) == 1
+    # Сортировка DESC по created_at, offset=1 пропустит самую новую (30) и вернёт среднюю (20)
     assert result.entries[0].amount == 20
 
 

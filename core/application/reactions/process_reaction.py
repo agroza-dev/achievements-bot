@@ -3,11 +3,13 @@ from collections.abc import Callable
 
 from core.application.reactions.reaction_diff import ReactionDiff
 from core.application.reactions.reaction_service import ReactionService
+from core.domain.rate_limiting.default_policies import DefaultRateLimitPolicies
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.dto.bot_context import BotContextDTO
 from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_message_repository import DbChatMessageRepository
 from core.infrastructure.repositories.chat_repository import ChatRepository
+from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.reaction_repository import DbReactionRepository
@@ -18,9 +20,15 @@ UowFactory = Callable[[], DbUnitOfWork]
 
 
 class ProcessReactionUseCase:
-    def __init__(self, uow_factory: UowFactory, reaction_policy: ReactionPolicy):
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        reaction_policy: ReactionPolicy,
+        rate_limiter: InMemoryRateLimiter | None = None,
+    ):
         self.uow_factory = uow_factory
         self.policy = reaction_policy
+        self.rate_limiter = rate_limiter or InMemoryRateLimiter()
 
     async def execute(
         self,
@@ -47,6 +55,50 @@ class ProcessReactionUseCase:
         if not changes:
             logger.debug(
                 f"No reaction changes detected for message {tg_message_id} "
+                f"in chat {tg_chat_id} by user {ctx.user.id}"
+            )
+            return
+
+        # Проверяем rate limit для добавлений
+        allowed_additions = []
+        for reaction in changes.added:
+            rate_limit_result = await self.rate_limiter.check_rate_limit(
+                user_id=ctx.user.id,
+                action="reaction_add",
+                policy=DefaultRateLimitPolicies.REACTION_ADD,
+            )
+
+            if not rate_limit_result.allowed:
+                logger.warning(
+                    "Rate limit exceeded for user %s (reaction_add): %s",
+                    ctx.user.id,
+                    rate_limit_result.message,
+                )
+            else:
+                allowed_additions.append(reaction)
+
+        # Проверяем rate limit для удалений
+        allowed_removals = []
+        for reaction in changes.removed:
+            rate_limit_result = await self.rate_limiter.check_rate_limit(
+                user_id=ctx.user.id,
+                action="reaction_remove",
+                policy=DefaultRateLimitPolicies.REACTION_REMOVE,
+            )
+
+            if not rate_limit_result.allowed:
+                logger.warning(
+                    "Rate limit exceeded for user %s (reaction_remove): %s",
+                    ctx.user.id,
+                    rate_limit_result.message,
+                )
+            else:
+                allowed_removals.append(reaction)
+
+        # Если после проверки лимитов не осталось изменений, пропускаем
+        if not allowed_additions and not allowed_removals:
+            logger.debug(
+                f"All reactions rate-limited for message {tg_message_id} "
                 f"in chat {tg_chat_id} by user {ctx.user.id}"
             )
             return
@@ -96,8 +148,8 @@ class ProcessReactionUseCase:
                 policy=self.policy
             )
 
-            # Обрабатываем каждое удаление
-            for reaction in changes.removed:
+            # Обрабатываем каждое удаление (только разрешённые rate limit)
+            for reaction in allowed_removals:
                 await reaction_service.remove_reaction(
                     ctx=ctx,
                     chat_id=chat_dto.id,
@@ -105,8 +157,8 @@ class ProcessReactionUseCase:
                     emoji=reaction,
                 )
 
-            # Обрабатываем каждое добавление
-            for reaction in changes.added:
+            # Обрабатываем каждое добавление (только разрешённые rate limit)
+            for reaction in allowed_additions:
                 await reaction_service.add_reaction(
                     ctx=ctx,
                     chat_id=chat_dto.id,

@@ -15,6 +15,7 @@ from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.domain.transfers.default_transfer_policy import DefaultTransferPolicy
 from core.domain.transfers.transfer_policy import TransferPolicy
 from core.infrastructure.database import DatabaseManager, DbUnitOfWork
+from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
 
 if TYPE_CHECKING:
     from core.application.context.ensure_chat import EnsureChatUseCase
@@ -45,6 +46,7 @@ class Container:
         self._message_policy: ChatMessagePolicy | None = None
         self._reaction_policy: ReactionPolicy | None = None
         self._transfer_policy: TransferPolicy | None = None
+        self._rate_limiter: InMemoryRateLimiter | None = None
 
     def get_uow_factory(self) -> UowFactory:
         """
@@ -117,6 +119,7 @@ class Container:
         return ProcessReactionUseCase(
             uow_factory=self.get_uow_factory(),
             reaction_policy=self.get_reaction_policy(),
+            rate_limiter=self.get_rate_limiter(),
         )
 
     def get_transfer_policy(self) -> TransferPolicy:
@@ -124,8 +127,18 @@ class Container:
             self._transfer_policy = DefaultTransferPolicy()
         return self._transfer_policy
 
+    def get_rate_limiter(self) -> InMemoryRateLimiter:
+        """Получить rate limiter (singleton)."""
+        if self._rate_limiter is None:
+            self._rate_limiter = InMemoryRateLimiter()
+        return self._rate_limiter
+
     def get_transfer_points_use_case(self) -> TransferPointsUseCase:
-        return TransferPointsUseCase(self.get_uow_factory(), self.get_transfer_policy())
+        return TransferPointsUseCase(
+            self.get_uow_factory(),
+            self.get_transfer_policy(),
+            self.get_rate_limiter(),
+        )
 
 
     def get_personal_stats_use_case(self) -> GetPersonalStatsUseCase:

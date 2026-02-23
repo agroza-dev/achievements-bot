@@ -63,14 +63,14 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message.chat_id, message.message_id, reaction=[ReactionEmoji.WRITING_HAND]
         )
         await context.bot.send_message(
-            chat_id=command.initiator_user_id,
+            chat_id=ctx.user.tg_id,
             text="Трансфер успешно выполнен 👍",
         )
 
     elif transfer_result.status is TransferStatus.FORBIDDEN:
         await context.bot.setMessageReaction(message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE)
         await context.bot.send_message(
-            chat_id=command.initiator_user_id,
+            chat_id=ctx.user.tg_id,
             text=transfer_result.message or "Запрещённое действие",
         )
 
@@ -79,7 +79,7 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message.chat_id, message.message_id, reaction=ReactionEmoji.PILL
         )
         await context.bot.send_message(
-            chat_id=command.initiator_user_id,
+            chat_id=ctx.user.tg_id,
             text="Недостаточно очков для трансфера",
         )
 
@@ -99,7 +99,7 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
         )
         await context.bot.send_message(
-            chat_id=command.initiator_user_id,
+            chat_id=ctx.user.tg_id,
             text="Неверный формат трансфера",
         )
 
