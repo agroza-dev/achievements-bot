@@ -6,6 +6,8 @@ from telegram.ext import ContextTypes
 from bot.keyboards.user_chats_keyboard import build_user_chats_keyboard
 from bot.renders.personal_stats_renderer import render_personal_stats
 from core.container import Container
+from core.ports.bot_gateway import BotGateway
+from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +32,14 @@ async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     container: Container = context.bot_data["container"]
+    bot_gateway: BotGateway = container.get_bot_gateway()
 
     get_user_chats_uc = container.get_user_chats_use_case()
 
     chats = await get_user_chats_uc.execute(
         tg_user_id=user.id,
     )
-    logger.debug(f"User chats: {chats}")
+    logger.debug(f"User chats: {prettify(chats)}")
 
     if not chats:
         await update.message.reply_text(
@@ -47,7 +50,7 @@ async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_T
     if len(chats) == 1:
         # один чат — сразу идём за статистикой
         context.user_data["stats_chat_id"] = chats[0].chat_id
-        await context.bot.send_message(
+        await bot_gateway.send_message(
             chat_id=chat.id,
             text=f"📊 Статистика для чата «{chats[0].title}»:",
         )

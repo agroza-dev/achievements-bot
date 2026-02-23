@@ -1,10 +1,10 @@
 import logging
 
 from telegram import Update
-from telegram.constants import ChatType
 from telegram.ext import ContextTypes
 
 from core.container import Container
+from core.ports.bot_gateway import BotGateway
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +15,17 @@ async def bot_membership_handler(update: Update, context: ContextTypes.DEFAULT_T
     if not message or not message.new_chat_members:
         return
 
-    bot_id = context.bot.id
+    # Получаем контейнер и BotGateway
+    container: Container = context.bot_data["container"]
+    bot_gateway: BotGateway = container.get_bot_gateway()
+
+    # Получаем ID бота через BotGateway
+    bot_info = await bot_gateway.get_chat_member(message.chat.id, message.bot.id)
+    bot_id = bot_info["user_id"]
 
     if not any(m.id == bot_id for m in message.new_chat_members):
         return
 
-    container: Container = context.bot_data["container"]
     use_case = container.get_bot_added_to_chat_use_case()
     bots = [user for user in message.new_chat_members if user.is_bot]
 
@@ -34,7 +39,6 @@ async def bot_membership_handler(update: Update, context: ContextTypes.DEFAULT_T
             bot=bot,
             added_by=message.from_user,
         )
-        is_super_group = message.chat.type == ChatType.SUPERGROUP
         # TODO Тут нужно написать нормальное сообщение чтобы было понятно, что:
         # TODO Функции бота работают только если группа является супер группой и бот является админом в группе
 

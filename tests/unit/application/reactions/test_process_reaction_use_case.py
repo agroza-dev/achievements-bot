@@ -61,10 +61,7 @@ def mock_uow():
             "DbRatingRepository": rating_repo,
             "DbRatingLedgerRepository": rating_ledger_repo,
         }
-        if hasattr(repo_class, "__name__"):
-            repo_name = repo_class.__name__
-        else:
-            repo_name = repo_class
+        repo_name = repo_class.__name__ if hasattr(repo_class, "__name__") else repo_class
         return repo_map.get(repo_name, MagicMock())
 
     uow.get_repo = MagicMock(side_effect=get_repo)

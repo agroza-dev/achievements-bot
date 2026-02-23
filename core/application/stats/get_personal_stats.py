@@ -38,7 +38,6 @@ class GetPersonalStatsUseCase:
                 limit=limit,
                 offset=offset,
             )
-            logger.debug(entries)
         balance = entries[0].balance_after if entries else 0
 
         return PersonalStatsDTO(

@@ -21,7 +21,7 @@ class GetChatLeaderboardUseCase:
                 limit=limit,
             )
 
-            users = await uow.user_repo.get_by_ids(
-                [r.user_id for r in ratings]
-            )
+            # Получаем данные пользователей для leaderboard
+            user_ids = [r.user_id for r in ratings]
+            uow.user_repo.get_by_ids(user_ids)  # TODO: использовать для enrichment
         ...

@@ -37,8 +37,8 @@ async def on_startup(application):
     db_manager = DatabaseManager()
     await db_manager.init_pool()
 
-    # Создаем DI контейнер с инициализированным менеджером БД
-    container = Container(db_manager)
+    # Создаем DI контейнер с инициализированным менеджером БД и bot экземпляром
+    container = Container(db_manager, bot=application.bot)
 
     # Сохраняем контейнер в application context для использования в handlers
     application.bot_data['container'] = container

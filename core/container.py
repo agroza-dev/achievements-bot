@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from telegram import Bot
+
 from core.application.chat_lifecycle.bot_added_to_chat import BotAddedToChatUseCase
 from core.application.stats.get_chat_leaderboard import GetChatLeaderboardUseCase
 from core.application.stats.get_personal_stats import GetPersonalStatsUseCase
@@ -14,8 +16,10 @@ from core.domain.reactions.default_reaction_policy import DefaultReactionPolicy
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.domain.transfers.default_transfer_policy import DefaultTransferPolicy
 from core.domain.transfers.transfer_policy import TransferPolicy
+from core.infrastructure.bot.production_bot_gateway import ProductionBotGateway
 from core.infrastructure.database import DatabaseManager, DbUnitOfWork
 from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
+from core.ports.bot_gateway import BotGateway
 
 if TYPE_CHECKING:
     from core.application.context.ensure_chat import EnsureChatUseCase
@@ -32,17 +36,20 @@ UowFactory = Callable[[], DbUnitOfWork]
 class Container:
     """DI контейнер для управления зависимостями."""
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: DatabaseManager, bot: Bot | None = None):
         """
         Инициализация контейнера.
 
         Args:
             db_manager: Менеджер базы данных с инициализированным пулом подключений
+            bot: Экземпляр telegram.Bot для ProductionBotGateway (опционально)
         """
         if not db_manager.pool:
             raise ValueError("DatabaseManager pool must be initialized before creating Container")
 
         self._db_manager = db_manager
+        self._bot = bot
+        self._bot_gateway: BotGateway | None = None
         self._message_policy: ChatMessagePolicy | None = None
         self._reaction_policy: ReactionPolicy | None = None
         self._transfer_policy: TransferPolicy | None = None
@@ -59,6 +66,31 @@ class Container:
             return DbUnitOfWork(self._db_manager.pool)
 
         return factory
+
+    def get_bot_gateway(self) -> BotGateway:
+        """
+        Получить BotGateway (singleton).
+
+        Returns:
+            Экземпляр BotGateway (ProductionBotGateway или FakeBotGateway)
+        """
+        if self._bot_gateway is None:
+            if self._bot is not None:
+                self._bot_gateway = ProductionBotGateway(self._bot)
+            else:
+                # Fallback на FakeBotGateway если bot не предоставлен
+                from core.infrastructure.bot.fake_bot_gateway import FakeBotGateway
+                self._bot_gateway = FakeBotGateway()
+        return self._bot_gateway
+
+    def set_bot_gateway(self, gateway: BotGateway) -> None:
+        """
+        Установить BotGateway (для тестов).
+
+        Args:
+            gateway: Экземпляр BotGateway для использования
+        """
+        self._bot_gateway = gateway
 
     def get_message_policy(self) -> ChatMessagePolicy:
         """
