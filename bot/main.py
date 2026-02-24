@@ -7,7 +7,6 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     MessageReactionHandler,
-    PicklePersistence,
     filters,
 )
 from telegram.request import HTTPXRequest
@@ -24,6 +23,10 @@ from bot.handlers.transfer_handler import transfer_handler
 from core.config import settings
 from core.container import Container
 from core.infrastructure.database import DatabaseManager
+from core.infrastructure.repositories.bot_persistence_repository import (
+    PostgreSQLBotPersistenceRepository,
+)
+from core.infrastructure.repositories.postgresql_persistence import PostgreSQLPersistence
 from utils import trace_logger
 from utils.logger import logger
 
@@ -37,12 +40,22 @@ async def on_startup(application):
     db_manager = DatabaseManager()
     await db_manager.init_pool()
 
+    # Устанавливаем pool в persistence
+    persistence: PostgreSQLPersistence = application.persistence  # type: ignore[assignment]
+    persistence._pool_factory = lambda: db_manager.pool
+    persistence._repository = PostgreSQLBotPersistenceRepository(db_manager.pool)
+
+    # Application уже загрузил данные из persistence при инициализации
+    # Теперь просто создаем контейнер
+
     # Создаем DI контейнер с инициализированным менеджером БД и bot экземпляром
     container = Container(db_manager, bot=application.bot)
 
     # Сохраняем контейнер в application context для использования в handlers
+    # Важно: используем отдельный ключ, чтобы не конфликтовать с persistence
     application.bot_data['container'] = container
     application.bot_data['db_manager'] = db_manager  # Для обратной совместимости, если нужно
+    application.bot_data['persistence_repository'] = persistence._repository
 
     logger.info("Container initialized and ready")
 
@@ -50,6 +63,12 @@ async def on_startup(application):
 async def on_shutdown(application):
     """Очистка при остановке бота."""
     logger.info("Bot shutdown")
+
+    # Сохраняем данные из persistence в БД
+    persistence: PostgreSQLPersistence = application.persistence  # type: ignore[assignment]
+    if persistence:
+        await persistence.flush()
+        logger.info("Persistence data flushed")
 
     # Закрываем пул подключений к БД
     db_manager: DatabaseManager = application.bot_data.get('db_manager')
@@ -71,8 +90,10 @@ def main():
         }
     )
 
-    persistence = PicklePersistence(
-        filepath=settings.bot.persistence,
+    # Создаем persistence с заглушкой (будет заменено в on_startup)
+    persistence = PostgreSQLPersistence(
+        pool_factory=lambda: None,
+        update_interval=300,
     )
 
     application = (

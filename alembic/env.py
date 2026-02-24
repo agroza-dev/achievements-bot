@@ -35,6 +35,7 @@ config.set_main_option('sqlalchemy.url', database_url.replace('%', '%%'))
 # Add your model's MetaData object here for 'autogenerate' support
 # This will be updated when we create the models
 from core.models import (  # noqa: E402, F401
+    bot_persistence_model,
     chat_message_model,
     chat_model,
     chat_user_model,
