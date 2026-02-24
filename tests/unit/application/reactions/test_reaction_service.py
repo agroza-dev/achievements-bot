@@ -73,6 +73,7 @@ def ctx():
             first_name="test",
             last_name="test",
             tg_id=12111,
+            timezone="UTC",
             created_at=datetime.datetime.now(),
             updated_at=datetime.datetime.now()
         ),

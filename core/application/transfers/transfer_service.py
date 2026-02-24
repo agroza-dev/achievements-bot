@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 
 from core.application.transfers.transfer_intent import TransferDirection, TransferIntent
 from core.application.transfers.transfer_result import TransferResult
@@ -31,6 +32,11 @@ class TransferService:
         intent: TransferIntent,
     ) -> TransferResult|None:
         tax = self.policy.tax(intent.amount, intent.direction)
+
+        # Генерируем source_id для связи записей о переводе и налоге
+        # Используем текущий timestamp в миллисекундах как уникальный ID
+        source_id = int(datetime.now(UTC).timestamp() * 1000)
+
         # инициатор всегда платит
         initiator_delta = -(intent.amount + tax)
         initiator_balance = await self.rating_repo.add(
@@ -52,23 +58,40 @@ class TransferService:
             recipient_delta,
         )
 
-        # ledger инициатора
+        # Ledger инициатора: запись о переводе (без налога)
         await self.ledger_repo.add(
             RatingLedgerEntryDTO(
                 chat_id=chat_id,
                 user_id=initiator_user_id,
                 initiator_user_id=initiator_user_id,
-                amount=initiator_delta,
-                balance_after=initiator_balance,
+                amount=-intent.amount,  # только сумма перевода
+                balance_after=initiator_balance + tax,  # баланс до вычета налога
                 operation_type="transfer",
                 operation_subtype=str(intent.direction.value),
                 source_type="manual",
-                source_id=None,
-                meta={"tax": tax},
+                source_id=source_id,
+                meta={"recipient_user_id": recipient_user_id, "tax": tax},
             )
         )
 
-        # ledger получателя
+        # Ledger инициатора: запись о налоге (отдельная операция)
+        if tax > 0:
+            await self.ledger_repo.add(
+                RatingLedgerEntryDTO(
+                    chat_id=chat_id,
+                    user_id=initiator_user_id,
+                    initiator_user_id=initiator_user_id,
+                    amount=-tax,  # сумма налога
+                    balance_after=initiator_balance,  # финальный баланс после налога
+                    operation_type="tax",
+                    operation_subtype="transfer_tax",
+                    source_type="manual",
+                    source_id=source_id,  # тот же source_id для связи с переводом
+                    meta={"reason": "transfer_tax", "transfer_source_id": source_id},
+                )
+            )
+
+        # Ledger получателя
         await self.ledger_repo.add(
             RatingLedgerEntryDTO(
                 chat_id=chat_id,
@@ -79,7 +102,7 @@ class TransferService:
                 operation_type="transfer",
                 operation_subtype=str(intent.direction.value),
                 source_type="manual",
-                source_id=None,
-                meta={},
+                source_id=source_id,
+                meta={"from_user_id": initiator_user_id, "tax": tax},
             )
         )

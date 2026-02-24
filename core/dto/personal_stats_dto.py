@@ -8,3 +8,4 @@ class PersonalStatsDTO:
     balance: int
     entries: list[RatingLedgerHistoryEntryDTO]
     chat_title: str | None = None
+    user_timezone: str = "UTC"

@@ -15,6 +15,7 @@ def map_user(record: Record) -> UserDTO:
         first_name=record["first_name"],
         last_name=record["last_name"],
         is_bot=record["is_bot"],
+        timezone=record.get("timezone", "UTC"),
         created_at=record["created_at"],
         updated_at=record["updated_at"],
     )

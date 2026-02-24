@@ -48,6 +48,20 @@ class FakeUserRepository:
     async def get_id_by_tg_id(self, tg_user_id: int) -> int:
         return self._user_id_map.get(tg_user_id, 1)
 
+    async def get_by_tg_id(self, tg_user_id: int):
+        """Возвращает фейковый UserDTO для тестов."""
+        return type("UserDTO", (), {
+            "id": 1,
+            "tg_id": tg_user_id,
+            "username": "test_user",
+            "first_name": "Test",
+            "last_name": None,
+            "is_bot": False,
+            "timezone": "UTC",
+            "created_at": None,
+            "updated_at": None,
+        })()
+
 
 class FakeChatRepository:
     """Фейковый ChatRepository для тестов."""

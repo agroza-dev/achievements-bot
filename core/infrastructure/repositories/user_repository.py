@@ -29,16 +29,17 @@ class UserRepository:
             tg_user_id,
         )
 
-    async def upsert(self, user: User) -> UserDTO:
+    async def upsert(self, user: User, timezone: str = "UTC") -> UserDTO:
         query = """
-            INSERT INTO users (tg_id, username, first_name, last_name, is_bot)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO users (tg_id, username, first_name, last_name, is_bot, timezone)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (tg_id) DO UPDATE
             SET
                 username   = EXCLUDED.username,
                 first_name = EXCLUDED.first_name,
                 last_name  = EXCLUDED.last_name,
-                is_bot     = EXCLUDED.is_bot
+                is_bot     = EXCLUDED.is_bot,
+                timezone   = EXCLUDED.timezone
             RETURNING *
         """
         record = await self.conn.fetchrow(
@@ -48,6 +49,7 @@ class UserRepository:
             user.first_name,
             user.last_name,
             user.is_bot,
+            timezone,
         )
 
         return map_user(record)

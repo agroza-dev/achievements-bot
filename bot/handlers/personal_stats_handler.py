@@ -12,7 +12,7 @@ from utils.logger import prettify
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_LIMIT = 10
+DEFAULT_LIMIT = 5
 
 
 async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,8 +98,12 @@ async def personal_stats_callback_handler(update: Update, context: ContextTypes.
         limit=DEFAULT_LIMIT,
         offset=0,
     )
-
-    text = render_personal_stats(stats, current_user_id=user.id)
+    logger.debug(f"User stats: {prettify(stats)}")
+    text = render_personal_stats(
+        stats,
+        current_user_id=user.id,
+        user_timezone=stats.user_timezone,
+    )
 
     await query.edit_message_text(
         text=text,

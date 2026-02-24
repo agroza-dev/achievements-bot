@@ -10,6 +10,7 @@ from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.chat_user_repository import ChatUserRepository
 from core.infrastructure.repositories.user_repository import UserRepository
 from utils.logger import prettify
+from utils.timezone_utils import get_timezone_by_language
 
 logger = logging.getLogger(__name__)
 UowFactory = Callable[[], DbUnitOfWork]
@@ -59,7 +60,9 @@ class EnsureContextUseCase:
             # 1. Обеспечиваем существование пользователя
             user = await user_repo.get_by_tg_id(tg_user.id)
             if not user:
-                user = await user_repo.upsert(tg_user)
+                # Определяем часовой пояс по языку пользователя
+                timezone = get_timezone_by_language(tg_user.language_code)
+                user = await user_repo.upsert(tg_user, timezone=timezone)
             logger.debug(f"Received user: {prettify(user)} by {tg_user.id}")
             # 2. Обеспечиваем существование чата
             chat = await chat_repo.get_by_tg_id(tg_chat.id)
