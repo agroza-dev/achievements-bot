@@ -155,7 +155,7 @@ async def run_load_test(
     ]
 
     results = await asyncio.gather(*tasks)
-    
+
     # Распаковываем результаты
     all_latencies = []
     total_allowed = 0
