@@ -1,3 +1,4 @@
+# ruff: noqa
 """003_add_foreign_keys_to_reactions
 
 Revision ID: 671cabe9ec56
