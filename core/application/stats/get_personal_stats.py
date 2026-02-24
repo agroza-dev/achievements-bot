@@ -43,4 +43,5 @@ class GetPersonalStatsUseCase:
         return PersonalStatsDTO(
             balance=balance,
             entries=entries,
+            chat_title=chat_dto.title if chat_dto else None,
         )

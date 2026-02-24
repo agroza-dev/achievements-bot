@@ -20,6 +20,7 @@ class RatingLedgerEntryDTO:
 @dataclass(slots=True)
 class RatingLedgerHistoryEntryDTO(RatingLedgerEntryDTO):
     created_at: datetime
+    initiator_username: str | None = None
 
 @dataclass(slots=True)
 class RatingLedgerRecordDTO:

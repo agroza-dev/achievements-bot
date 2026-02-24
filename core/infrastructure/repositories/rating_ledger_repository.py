@@ -104,21 +104,23 @@ class DbRatingLedgerRepository:
     ) -> list[RatingLedgerHistoryEntryDTO]:
         query = """
             SELECT
-                chat_id,
-                user_id,
-                initiator_user_id,
-                amount,
-                balance_after,
-                operation_type,
-                operation_subtype,
-                source_type,
-                source_id,
-                meta,
-                created_at
-            FROM rating_ledger
-            WHERE user_id = $1
-              AND ($2::BIGINT IS NULL OR chat_id = $2)
-            ORDER BY created_at DESC
+                rl.chat_id,
+                rl.user_id,
+                rl.initiator_user_id,
+                rl.amount,
+                rl.balance_after,
+                rl.operation_type,
+                rl.operation_subtype,
+                rl.source_type,
+                rl.source_id,
+                rl.meta,
+                rl.created_at,
+                u.username as initiator_username
+            FROM rating_ledger rl
+            LEFT JOIN users u ON rl.initiator_user_id = u.id
+            WHERE rl.user_id = $1
+              AND ($2::BIGINT IS NULL OR rl.chat_id = $2)
+            ORDER BY rl.created_at DESC
             LIMIT $3 OFFSET $4
         """
 

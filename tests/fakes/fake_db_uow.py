@@ -53,9 +53,9 @@ class FakeChatRepository:
     """Фейковый ChatRepository для тестов."""
 
     def __init__(self, chat_id_map: dict[int, int] | None = None):
-        self._chat_id_map = chat_id_map or {1: type("ChatDTO", (), {"id": 1})()}
+        self._chat_id_map = chat_id_map or {1: type("ChatDTO", (), {"id": 1, "title": "Test Chat"})()}
 
     async def get_by_tg_id(self, tg_chat_id: int | None):
         if tg_chat_id is None:
-            return type("ChatDTO", (), {"id": None})()
-        return self._chat_id_map.get(tg_chat_id, type("ChatDTO", (), {"id": 1})())
+            return type("ChatDTO", (), {"id": None, "title": None})()
+        return self._chat_id_map.get(tg_chat_id, type("ChatDTO", (), {"id": 1, "title": "Test Chat"})())

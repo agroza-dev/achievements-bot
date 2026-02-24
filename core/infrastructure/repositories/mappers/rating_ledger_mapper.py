@@ -46,6 +46,7 @@ def map_rating_ledger_history_entry(record: Record) -> RatingLedgerHistoryEntryD
         source_id=record["source_id"],
         meta=meta,
         created_at=record["created_at"],
+        initiator_username=record.get("initiator_username"),
     )
 
 

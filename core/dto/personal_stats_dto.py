@@ -7,3 +7,4 @@ from core.dto.rating_ledger_dto import RatingLedgerHistoryEntryDTO
 class PersonalStatsDTO:
     balance: int
     entries: list[RatingLedgerHistoryEntryDTO]
+    chat_title: str | None = None

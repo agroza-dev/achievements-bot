@@ -99,7 +99,7 @@ async def personal_stats_callback_handler(update: Update, context: ContextTypes.
         offset=0,
     )
 
-    text = render_personal_stats(stats)
+    text = render_personal_stats(stats, current_user_id=user.id)
 
     await query.edit_message_text(
         text=text,
