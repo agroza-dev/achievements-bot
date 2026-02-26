@@ -4,7 +4,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from core.container import Container
-from core.ports.bot_gateway import BotGateway
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +14,11 @@ async def bot_membership_handler(update: Update, context: ContextTypes.DEFAULT_T
     if not message or not message.new_chat_members:
         return
 
-    # Получаем контейнер и BotGateway
+    # Получаем контейнер
     container: Container = context.bot_data["container"]
-    bot_gateway: BotGateway = container.get_bot_gateway()
 
-    # Получаем ID бота через BotGateway
-    bot_info = await bot_gateway.get_chat_member(message.chat.id, message.bot.id)
-    bot_id = bot_info["user_id"]
+    # Получаем ID бота
+    bot_id = context.bot.id
 
     if not any(m.id == bot_id for m in message.new_chat_members):
         return
@@ -39,11 +36,40 @@ async def bot_membership_handler(update: Update, context: ContextTypes.DEFAULT_T
             bot=bot,
             added_by=message.from_user,
         )
-        # TODO Тут нужно написать нормальное сообщение чтобы было понятно, что:
-        # TODO Функции бота работают только если группа является супер группой и бот является админом в группе
 
-        # TODO Также нужно пометить как админа пользователя, который бота в группу добавил.
-        await update.message.reply_text('Бот добавлен. Для корректной работы всех функций ')
+        # Формируем сообщение в зависимости от типа чата
+        is_supergroup = message.chat.type == "supergroup"
+
+        bot_name = context.bot.username
+
+        # Формируем список требований
+        requirements = [
+            f"Написать команду /start в личные сообщения @{bot_name} — так бот сможет отправлять уведомления и личную статистику",
+            "Дождаться, пока активные участники напишут сообщения в чат — бот должен их «увидеть»",
+        ]
+        if not is_supergroup:
+            requirements.append("Преобразовать группу в супергруппу — это нужно для учёта реакций на сообщения")
+
+        # Формируем список доступных функций
+        features = [
+            "🔄 **Трансферы очков** — переводите очки между участниками в ответ на сообщение или через упоминание",
+            "📊 **Статистика** — личная и групповая статистика доступна в личном чате с ботом",
+            "🏆 **Таблица лидеров** — узнайте, кто в чате самый активный",
+            #"👥 **Группы участников** — создавайте группы (например, «Собаки», «Дизайнеры») и упоминайте их одной командой", TODO нужно реализовать
+        ]
+
+        # Собираем сообщение
+        text = f"🤖 **{bot_name} добавлен в группу!**\n\n"
+        text += "✅ **Что нужно сделать для корректной работы:**\n"
+        for i, req in enumerate(requirements, 1):
+            text += f"{i}. {req}\n"
+
+        text += "\n🎯 **Доступные функции:**\n"
+        text += "\n".join(features)
+
+        text += "\n\n💡 Используйте `/help` для подробной информации о командах"
+
+        await update.message.reply_text(text, parse_mode="Markdown")
         logger.info(
             f"Bot added to chat {message.chat.title} by {message.from_user.username}",
             extra={

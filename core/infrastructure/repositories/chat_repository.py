@@ -54,6 +54,7 @@ class ChatRepository:
             SET
                 type = EXCLUDED.type,
                 title = EXCLUDED.title,
+                is_active = true,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING *
         """
@@ -65,3 +66,21 @@ class ChatRepository:
         )
 
         return map_chat(record)
+
+    async def deactivate(self, chat_id: int):
+        """Деактивировать чат."""
+        query = """
+            UPDATE chats
+            SET is_active = false, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        """
+        await self.conn.execute(query, chat_id)
+
+    async def activate(self, chat_id: int):
+        """Активировать чат."""
+        query = """
+            UPDATE chats
+            SET is_active = true, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        """
+        await self.conn.execute(query, chat_id)

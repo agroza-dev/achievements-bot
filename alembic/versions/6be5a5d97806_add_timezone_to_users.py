@@ -23,7 +23,7 @@ def upgrade() -> None:
     """Upgrade schema."""
     op.add_column(
         'users',
-        sa.Column('timezone', sa.String(length=64), nullable=False, server_default='ru')
+        sa.Column('timezone', sa.String(length=64), nullable=False, server_default='Europe/Moscow')
     )
 
 

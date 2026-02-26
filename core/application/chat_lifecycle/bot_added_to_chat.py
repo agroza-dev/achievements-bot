@@ -12,7 +12,7 @@ class BotAddedToChatUseCase:
     def __init__(self, uow_factory):
         self.uow_factory = uow_factory
 
-    async def execute(self, *, tg_chat: Chat, bot: User,  added_by: User):
+    async def execute(self, *, tg_chat: Chat, bot: User, added_by: User):
         async with self.uow_factory() as uow:
             user_repo: UserRepository = uow.get_repo(UserRepository)
             chat_repo: ChatRepository = uow.get_repo(ChatRepository)
@@ -23,7 +23,7 @@ class BotAddedToChatUseCase:
                 chat = await chat_repo.upsert(tg_chat)
 
             # гарантируем, что бот есть в users
-            bot_user = await user_repo.get_by_tg_id(tg_chat.id)
+            bot_user = await user_repo.get_by_tg_id(bot.id)
             if not bot_user:
                 bot_user = await user_repo.upsert_bot(
                     bot_id=bot.id,
@@ -37,5 +37,16 @@ class BotAddedToChatUseCase:
             await chat_user_repo.add_user_to_chat(
                 chat_id=chat.id,
                 user_id=bot_user.id,
+                is_admin=True,
+            )
+
+            # Добавляем пользователя, который добавил бота, как is_admin
+            added_by_user = await user_repo.get_by_tg_id(added_by.id)
+            if not added_by_user:
+                added_by_user = await user_repo.upsert(added_by)
+
+            await chat_user_repo.add_user_to_chat(
+                chat_id=chat.id,
+                user_id=added_by_user.id,
                 is_admin=True,
             )

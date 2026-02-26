@@ -57,7 +57,7 @@ class FakeUserRepository:
             "first_name": "Test",
             "last_name": None,
             "is_bot": False,
-            "timezone": "UTC",
+            "timezone": "Europe/Moscow",
             "created_at": None,
             "updated_at": None,
         })()

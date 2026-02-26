@@ -29,7 +29,7 @@ class UserRepository:
             tg_user_id,
         )
 
-    async def upsert(self, user: User, timezone: str = "UTC") -> UserDTO:
+    async def upsert(self, user: User, timezone: str = "Europe/Moscow") -> UserDTO:
         query = """
             INSERT INTO users (tg_id, username, first_name, last_name, is_bot, timezone)
             VALUES ($1, $2, $3, $4, $5, $6)

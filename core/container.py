@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from telegram import Bot
 
 from core.application.chat_lifecycle.bot_added_to_chat import BotAddedToChatUseCase
+from core.application.chat_lifecycle.user_left_chat import UserLeftChatUseCase
 from core.application.stats.get_chat_leaderboard import GetChatLeaderboardUseCase
 from core.application.stats.get_personal_stats import GetPersonalStatsUseCase
 from core.application.stats.get_user_chats import GetUserChatsUseCase
@@ -133,6 +134,9 @@ class Container:
 
     def get_bot_added_to_chat_use_case(self) -> BotAddedToChatUseCase:
         return BotAddedToChatUseCase(self.get_uow_factory())
+
+    def get_user_left_chat_use_case(self) -> UserLeftChatUseCase:
+        return UserLeftChatUseCase(self.get_uow_factory())
 
     def get_reaction_policy(self) -> ReactionPolicy:
         """

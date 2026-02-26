@@ -190,8 +190,6 @@ def render_personal_stats(
 
         # Добавляем связанные записи (налоги)
         for related in related_entries:
-            tax_dt = _convert_to_timezone(related.created_at, user_timezone)
-            tax_date = tax_dt.strftime("%d.%m")
             tax_sign = "+" if related.amount > 0 else "−"
             tax_amount = abs(related.amount)
             lines.append(f"                    🧾 {tax_sign}{tax_amount} налог")
@@ -211,12 +209,12 @@ def _convert_to_timezone(dt: datetime, tz: str) -> datetime:
         datetime в локальном часовом поясе
     """
     import logging
-    
+
     logger = logging.getLogger(__name__)
-    
+
     # Если datetime без timezone, считаем что это UTC
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
 
     # Проверяем, что tz это валидный часовой пояс
     if not tz or tz == "UTC":
