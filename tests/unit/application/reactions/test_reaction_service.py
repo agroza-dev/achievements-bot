@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from core.application.rating_ledger.rating_ledger_service import RatingLedgerService
 from core.application.reactions.reaction_intent import ReactionKind
 from core.application.reactions.reaction_service import ReactionService
 from core.domain.reactions.reaction_policy import ReactionPolicy
@@ -54,10 +55,12 @@ def mock_ledger_repo():
 @pytest.fixture
 def service(mock_reaction_repo, mock_rating_repo, mock_ledger_repo, mock_policy):
     """Создаем сервис с замокированными зависимостями"""
+    ledger_service = RatingLedgerService(ledger_repo=mock_ledger_repo)
     return ReactionService(
         reaction_repo=mock_reaction_repo,
         rating_repo=mock_rating_repo,
         ledger_repo=mock_ledger_repo,
+        ledger_service=ledger_service,
         policy=mock_policy,
     )
 

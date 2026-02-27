@@ -44,9 +44,11 @@ def map_rating_ledger_history_entry(record: Record) -> RatingLedgerHistoryEntryD
         operation_subtype=record["operation_subtype"],
         source_type=record["source_type"],
         source_id=record["source_id"],
+        counterparty_user_id=record.get("counterparty_user_id"),
         meta=meta,
         created_at=record["created_at"],
         initiator_username=record.get("initiator_username"),
+        counterparty_username=record.get("counterparty_username"),
     )
 
 

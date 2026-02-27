@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -15,12 +15,27 @@ class RatingLedgerEntryDTO:
     operation_subtype: str | None
     source_type: str
     source_id: int | None
-    meta: dict[str, Any]
+    meta: dict[str, Any] = field(default_factory=dict)
+    counterparty_user_id: int | None = None
+
 
 @dataclass(slots=True)
-class RatingLedgerHistoryEntryDTO(RatingLedgerEntryDTO):
+class RatingLedgerHistoryEntryDTO:
+    """DTO для истории записей rating_ledger с username"""
+    chat_id: int
+    user_id: int
+    initiator_user_id: int | None
+    amount: int
+    balance_after: int | None
+    operation_type: str
+    operation_subtype: str | None
+    source_type: str
+    source_id: int | None
+    meta: dict[str, Any]
+    counterparty_user_id: int | None
     created_at: datetime
     initiator_username: str | None = None
+    counterparty_username: str | None = None
 
 @dataclass(slots=True)
 class RatingLedgerRecordDTO:

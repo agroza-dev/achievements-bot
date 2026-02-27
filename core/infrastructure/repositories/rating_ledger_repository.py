@@ -23,6 +23,7 @@ class DbRatingLedgerRepository:
                 chat_id,
                 user_id,
                 initiator_user_id,
+                counterparty_user_id,
                 amount,
                 balance_after,
                 operation_type,
@@ -31,11 +32,12 @@ class DbRatingLedgerRepository:
                 source_id,
                 meta
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             """,
             entry.chat_id,
             entry.user_id,
             entry.initiator_user_id,
+            entry.counterparty_user_id,
             entry.amount,
             entry.balance_after,
             entry.operation_type,
@@ -113,11 +115,14 @@ class DbRatingLedgerRepository:
                 rl.operation_subtype,
                 rl.source_type,
                 rl.source_id,
+                rl.counterparty_user_id,
                 rl.meta,
                 rl.created_at,
-                u.username as initiator_username
+                u.username as initiator_username,
+                cu.username as counterparty_username
             FROM rating_ledger rl
             LEFT JOIN users u ON rl.initiator_user_id = u.id
+            LEFT JOIN users cu ON rl.counterparty_user_id = cu.id
             WHERE rl.user_id = $1
               AND ($2::BIGINT IS NULL OR rl.chat_id = $2)
             ORDER BY rl.created_at DESC

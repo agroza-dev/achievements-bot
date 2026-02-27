@@ -1,9 +1,9 @@
 import logging
 
+from core.application.rating_ledger.rating_ledger_service import RatingLedgerService
 from core.application.reactions.reaction_intent import ReactionKind
 from core.domain.reactions.reaction_policy import ReactionPolicy
 from core.dto.bot_context import BotContextDTO
-from core.dto.rating_ledger_dto import RatingLedgerEntryDTO
 from core.dto.reaction_dto import ReactionDTO
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
@@ -18,11 +18,13 @@ class ReactionService:
         reaction_repo: DbReactionRepository,
         rating_repo: DbRatingRepository,
         ledger_repo: DbRatingLedgerRepository,
+        ledger_service: RatingLedgerService,
         policy: ReactionPolicy,
     ):
         self.reaction_repo = reaction_repo
         self.rating_repo = rating_repo
         self.ledger_repo = ledger_repo
+        self.ledger_service = ledger_service
         self.policy = policy
 
     # ---------- PUBLIC API ----------
@@ -121,19 +123,15 @@ class ReactionService:
             delta,
         )
 
-        await self.ledger_repo.add(
-            RatingLedgerEntryDTO(
-                chat_id=chat_id,
-                user_id=message.author_user_id,
-                initiator_user_id=ctx.user.id,
-                amount=delta,
-                balance_after=new_balance,
-                operation_type="reaction",
-                operation_subtype=kind.value,
-                source_type="message",
-                source_id=message.id,
-                meta={"emoji": emoji},
-            )
+        await self.ledger_service.record_reaction(
+            chat_id=chat_id,
+            user_id=message.author_user_id,
+            initiator_user_id=ctx.user.id,
+            amount=delta,
+            balance_after=new_balance,
+            message_id=message.id,
+            emoji=emoji,
+            kind=kind.value,
         )
 
         if kind is ReactionKind.POSITIVE:
@@ -167,19 +165,15 @@ class ReactionService:
             -delta,
         )
 
-        await self.ledger_repo.add(
-            RatingLedgerEntryDTO(
-                chat_id=chat_id,
-                user_id=message.author_user_id,
-                initiator_user_id=ctx.user.id,
-                amount=-delta,
-                balance_after=new_balance,
-                operation_type="reaction_revert",
-                operation_subtype=kind.value,
-                source_type="message",
-                source_id=message.id,
-                meta={"emoji": emoji},
-            )
+        await self.ledger_service.record_reaction_revert(
+            chat_id=chat_id,
+            user_id=message.author_user_id,
+            initiator_user_id=ctx.user.id,
+            amount=-delta,
+            balance_after=new_balance,
+            message_id=message.id,
+            emoji=emoji,
+            kind=kind.value,
         )
 
     async def _apply_tax_if_needed(self, ctx: BotContextDTO, chat_id: int, message, emoji: str):
@@ -193,18 +187,13 @@ class ReactionService:
             -tax,
         )
 
-        await self.ledger_repo.add(
-            RatingLedgerEntryDTO(
-                chat_id=chat_id,
-                user_id=ctx.user.id,
-                initiator_user_id=ctx.user.id,
-                amount=-tax,
-                balance_after=balance,
-                operation_type="tax",
-                operation_subtype="reaction",
-                source_type="message",
-                source_id=message.id,
-                meta={"emoji": emoji},
-            )
+        await self.ledger_service.record_tax(
+            chat_id=chat_id,
+            user_id=ctx.user.id,
+            initiator_user_id=ctx.user.id,
+            amount=-tax,
+            balance_after=balance,
+            message_id=message.id,
+            emoji=emoji,
         )
 

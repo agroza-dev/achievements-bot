@@ -11,6 +11,7 @@ def ledger_entry(
     amount: int = 10,
     balance_after: int = 10,
     created_at: datetime | None = None,
+    counterparty_user_id: int | None = None,
 ) -> RatingLedgerHistoryEntryDTO:
     return RatingLedgerHistoryEntryDTO(
         chat_id=chat_id,
@@ -23,5 +24,6 @@ def ledger_entry(
         source_type="message",
         source_id=1,
         meta={},
+        counterparty_user_id=counterparty_user_id,
         created_at=created_at or datetime.now(UTC),
     )

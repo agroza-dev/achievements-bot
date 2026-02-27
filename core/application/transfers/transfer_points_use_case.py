@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Callable
 
+from core.application.rating_ledger.rating_ledger_service import RatingLedgerService
 from core.application.transfers.transfer_parser import TransferParser
 from core.application.transfers.transfer_result import TransferResult, TransferStatus
 from core.application.transfers.transfer_service import TransferService
@@ -134,9 +135,10 @@ class TransferPointsUseCase:
 
                 logger.debug("Try to transfer")
                 # 3. Применяем трансфер
+                ledger_service = RatingLedgerService(ledger_repo=ledger_repo)
                 transfer_service = TransferService(
                     rating_repo=rating_repo,
-                    ledger_repo=ledger_repo,
+                    ledger_service=ledger_service,
                     policy=self.policy,
                 )
 
@@ -144,6 +146,7 @@ class TransferPointsUseCase:
                     chat_id=command.chat_id,
                     initiator_user_id=command.initiator_user_id,
                     recipient_user_id=recipient_user.id,
+                    recipient_username=recipient_user.username,
                     intent=intent,
                 )
             return TransferResult(status=TransferStatus.SUCCESS)

@@ -6,13 +6,57 @@ from telegram.ext import ContextTypes
 from bot.keyboards.user_chats_keyboard import build_user_chats_keyboard
 from bot.renders.personal_stats_renderer import render_personal_stats
 from core.container import Container
-from core.ports.bot_gateway import BotGateway
 from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_LIMIT = 5
+DEFAULT_LIMIT = 15
+
+
+async def _show_stats(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    chat_title: str | None = None,
+):
+    """Показать статистику для указанного чата."""
+    user = update.effective_user
+    if not user:
+        return
+
+    container: Container = context.bot_data["container"]
+    get_stats_uc = container.get_personal_stats_use_case()
+
+    stats = await get_stats_uc.execute(
+        tg_user_id=user.id,
+        tg_chat_id=chat_id,
+        limit=DEFAULT_LIMIT,
+        offset=0,
+    )
+    logger.debug(f"User stats: {prettify(stats)}")
+
+    text = render_personal_stats(
+        stats,
+        current_user_id=user.id,
+        user_timezone=stats.user_timezone,
+    )
+
+    if chat_title:
+        text = f"📊 Статистика для чата «{chat_title}»:\n\n{text}"
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            text=text,
+            disable_web_page_preview=True,
+            parse_mode="Markdown",
+        )
+    elif update.message:
+        await update.message.reply_text(
+            text=text,
+            disable_web_page_preview=True,
+            parse_mode="Markdown",
+        )
 
 
 async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,7 +76,6 @@ async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     container: Container = context.bot_data["container"]
-    bot_gateway: BotGateway = container.get_bot_gateway()
 
     get_user_chats_uc = container.get_user_chats_use_case()
 
@@ -48,14 +91,14 @@ async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     if len(chats) == 1:
-        # один чат — сразу идём за статистикой
+        # один чат — сразу показываем статистику
         context.user_data["stats_chat_id"] = chats[0].chat_id
-        await bot_gateway.send_message(
-            chat_id=chat.id,
-            text=f"📊 Статистика для чата «{chats[0].title}»:",
+        await _show_stats(
+            update=update,
+            context=context,
+            chat_id=chats[0].chat_id,
+            chat_title=chats[0].title,
         )
-        # дальше можно вызвать общий метод показа статистики
-        context.args = [str(chats[0].chat_id)]
         return
 
     keyboard = build_user_chats_keyboard(chats)
@@ -88,24 +131,19 @@ async def personal_stats_callback_handler(update: Update, context: ContextTypes.
     if not user:
         return
 
-    container: Container = context.bot_data["container"]
+    context.user_data["stats_chat_id"] = chat_id
 
-    get_stats_uc = container.get_personal_stats_use_case()
+    # Найдем название чата из списка, если доступно
+    chat_title = None
+    if "user_chats" in context.user_data:
+        for chat in context.user_data["user_chats"]:
+            if chat.chat_id == chat_id:
+                chat_title = chat.title
+                break
 
-    stats = await get_stats_uc.execute(
-        tg_user_id=update.effective_user.id,
-        tg_chat_id=chat_id,
-        limit=DEFAULT_LIMIT,
-        offset=0,
-    )
-    logger.debug(f"User stats: {prettify(stats)}")
-    text = render_personal_stats(
-        stats,
-        current_user_id=user.id,
-        user_timezone=stats.user_timezone,
-    )
-
-    await query.edit_message_text(
-        text=text,
-        disable_web_page_preview=True,
+    await _show_stats(
+        update=update,
+        context=context,
+        chat_id=chat_id,
+        chat_title=chat_title,
     )

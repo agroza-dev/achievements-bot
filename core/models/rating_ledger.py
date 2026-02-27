@@ -81,6 +81,15 @@ rating_ledger = Table(
         nullable=True,
     ),
 
+    # Вторая сторона операции (для переводов)
+    Column(
+        "counterparty_user_id",
+        BigInteger,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Вторая сторона операции (для переводов)",
+    ),
+
     # Время
     Column(
         "created_at",
@@ -93,4 +102,5 @@ rating_ledger = Table(
     Index("idx_rating_ledger_chat_user", "chat_id", "user_id"),
     Index("idx_rating_ledger_source", "source_type", "source_id"),
     Index("idx_rating_ledger_created_at", "created_at"),
+    Index("idx_rating_ledger_counterparty", "counterparty_user_id"),
 )

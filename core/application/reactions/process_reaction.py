@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Callable
 
+from core.application.rating_ledger.rating_ledger_service import RatingLedgerService
 from core.application.reactions.reaction_diff import ReactionDiff
 from core.application.reactions.reaction_service import ReactionService
 from core.domain.rate_limiting.default_policies import DefaultRateLimitPolicies
@@ -140,11 +141,13 @@ class ProcessReactionUseCase:
             reaction_repo = uow.get_repo(DbReactionRepository)
             rating_repo = uow.get_repo(DbRatingRepository)
             rating_ledger_repo = uow.get_repo(DbRatingLedgerRepository)
+            ledger_service = RatingLedgerService(ledger_repo=rating_ledger_repo)
 
             reaction_service = ReactionService(
                 reaction_repo=reaction_repo,
                 rating_repo=rating_repo,
                 ledger_repo=rating_ledger_repo,
+                ledger_service=ledger_service,
                 policy=self.policy
             )
 

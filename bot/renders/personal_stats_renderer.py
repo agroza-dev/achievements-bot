@@ -166,25 +166,24 @@ def render_personal_stats(
         amount = abs(main_entry.amount)
 
         # Инициатор (если не сам пользователь)
-        initiator = _format_initiator(main_entry, current_user_id or main_entry.user_id)
+        # Для переводов не показываем инициатора, т.к. это избыточно
+        initiator = None if main_entry.operation_type == "transfer" else _format_initiator(main_entry, current_user_id or main_entry.user_id)
 
         # Для перевода добавляем информацию о получателе/отправителе
         extra_info = ""
         if main_entry.operation_type == "transfer":
             if main_entry.amount < 0:
                 # Отправка перевода
-                recipient_id = main_entry.meta.get("recipient_user_id")
-                if recipient_id:
-                    extra_info = " ↪️ пользователю"
+                counterparty_username = main_entry.counterparty_username
+                extra_info = f" ↪️ @{counterparty_username}" if counterparty_username else " ↪️ пользователю"
             else:
                 # Получение перевода
-                sender_id = main_entry.meta.get("from_user_id")
-                if sender_id:
-                    extra_info = " ↩️ от пользователя"
+                counterparty_username = main_entry.counterparty_username
+                extra_info = f" ↩️ от @{counterparty_username}" if counterparty_username else " ↩️ от пользователя"
 
         # Формируем строку
         if initiator:
-            lines.append(f"{date} {icon} {sign}{amount}{extra_info} от {initiator}")
+            lines.append(f"{date} {icon} {sign}{amount}{extra_info} {initiator}")
         else:
             lines.append(f"{date} {icon} {sign}{amount}{extra_info}")
 
