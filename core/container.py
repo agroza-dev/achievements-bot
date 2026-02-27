@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from telegram import Bot
 
 from core.application.chat_lifecycle.bot_added_to_chat import BotAddedToChatUseCase
+from core.application.chat_lifecycle.user_added_to_chat import UserAddedToChatUseCase
 from core.application.chat_lifecycle.user_left_chat import UserLeftChatUseCase
 from core.application.stats.get_chat_leaderboard import GetChatLeaderboardUseCase
 from core.application.stats.get_personal_stats import GetPersonalStatsUseCase
@@ -23,10 +24,7 @@ from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
 from core.ports.bot_gateway import BotGateway
 
 if TYPE_CHECKING:
-    from core.application.context.ensure_chat import EnsureChatUseCase
-    from core.application.context.ensure_chat_user import EnsureChatUserUseCase
     from core.application.context.ensure_context import EnsureContextUseCase
-    from core.application.context.ensure_user import EnsureUserUseCase
     from core.application.messages.process_chat_message import ProcessChatMessageUseCase
     from core.application.reactions.process_reaction import ProcessReactionUseCase
 
@@ -104,21 +102,6 @@ class Container:
             self._message_policy = DefaultChatMessagePolicy()
         return self._message_policy
 
-    def get_ensure_user_use_case(self) -> EnsureUserUseCase:
-        """Создать use case для обеспечения существования пользователя."""
-        from core.application.context.ensure_user import EnsureUserUseCase
-        return EnsureUserUseCase(uow_factory=self.get_uow_factory())
-
-    def get_ensure_chat_use_case(self) -> EnsureChatUseCase:
-        """Создать use case для обеспечения существования чата."""
-        from core.application.context.ensure_chat import EnsureChatUseCase
-        return EnsureChatUseCase(uow_factory=self.get_uow_factory())
-
-    def get_ensure_chat_user_use_case(self) -> EnsureChatUserUseCase:
-        """Создать use case для обеспечения связи пользователя и чата."""
-        from core.application.context.ensure_chat_user import EnsureChatUserUseCase
-        return EnsureChatUserUseCase(uow_factory=self.get_uow_factory())
-
     def get_ensure_context_use_case(self) -> EnsureContextUseCase:
         """Создать use case для обеспечения контекста (user, chat, chat_user в одной транзакции)."""
         from core.application.context.ensure_context import EnsureContextUseCase
@@ -134,6 +117,9 @@ class Container:
 
     def get_bot_added_to_chat_use_case(self) -> BotAddedToChatUseCase:
         return BotAddedToChatUseCase(self.get_uow_factory())
+
+    def get_user_added_to_chat_use_case(self) -> UserAddedToChatUseCase:
+        return UserAddedToChatUseCase(self.get_uow_factory())
 
     def get_user_left_chat_use_case(self) -> UserLeftChatUseCase:
         return UserLeftChatUseCase(self.get_uow_factory())

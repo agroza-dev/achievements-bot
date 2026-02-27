@@ -21,6 +21,7 @@ from bot.handlers.personal_stats_handler import personal_stats_callback_handler,
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from bot.handlers.transfer_handler import transfer_handler
+from bot.handlers.user_added_to_chat_handler import user_added_to_chat_handler
 from core.config import settings
 from core.container import Container
 from core.infrastructure.database import DatabaseManager
@@ -109,6 +110,13 @@ def main():
     application.add_handler(
         MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, bot_membership_handler),
         group=0,
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.StatusUpdate.NEW_CHAT_MEMBERS,
+            user_added_to_chat_handler,
+        ),
+        group=1,  # Вызывается после bot_membership_handler
     )
     application.add_handler(
         MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_chat_member_handler),
