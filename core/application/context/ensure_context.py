@@ -4,10 +4,14 @@ from collections.abc import Callable
 
 from telegram import Chat, User
 
+from core.application.chat_lifecycle.award_welcome_bonus import AwardWelcomeBonusUseCase
+from core.application.rating_ledger.rating_ledger_service import RatingLedgerService
 from core.dto.bot_context import BotContextDTO
 from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_repository import ChatRepository
 from core.infrastructure.repositories.chat_user_repository import ChatUserRepository
+from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
+from core.infrastructure.repositories.rating_repository import DbRatingRepository
 from core.infrastructure.repositories.user_repository import UserRepository
 from utils.logger import prettify
 from utils.timezone_utils import get_timezone_by_language
@@ -56,6 +60,8 @@ class EnsureContextUseCase:
             user_repo: UserRepository = uow.get_repo(UserRepository)
             chat_repo: ChatRepository = uow.get_repo(ChatRepository)
             chat_user_repo: ChatUserRepository = uow.get_repo(ChatUserRepository)
+            rating_repo: DbRatingRepository = uow.get_repo(DbRatingRepository)
+            ledger_repo: DbRatingLedgerRepository = uow.get_repo(DbRatingLedgerRepository)
 
             # 1. Обеспечиваем существование пользователя
             user = await user_repo.get_by_tg_id(tg_user.id)
@@ -73,6 +79,15 @@ class EnsureContextUseCase:
             chat_user = await chat_user_repo.get_chat_user(chat.id, user.id)
             if not chat_user:
                 chat_user = await chat_user_repo.add_user_to_chat(chat.id, user.id, False)
+
+                # 4. Начисляем приветственный бонус (только если пользователь добавлен впервые)
+                rating_service = RatingLedgerService(ledger_repo)
+                welcome_bonus_use_case = AwardWelcomeBonusUseCase(
+                    rating_service=rating_service,
+                    rating_repo=rating_repo,
+                    ledger_repo=ledger_repo,
+                )
+                await welcome_bonus_use_case.execute(uow=uow, chat_id=chat.id, user_id=user.id)
 
             # Все операции выполнены в одной транзакции
             return BotContextDTO(
