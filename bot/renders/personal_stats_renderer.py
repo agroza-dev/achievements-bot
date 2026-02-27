@@ -8,6 +8,7 @@ OPERATION_ICONS = {
     "reaction_revert": "↩️",  # отмена реакции
     "tax": "🧾",          # налог
     "transfer": "💸",     # перевод между пользователями
+    "bonus": "🎁",        # бонус
 }
 
 # Иконки для подтипов операций (action)
@@ -38,12 +39,23 @@ def _get_operation_icon(entry) -> str:
     if entry.operation_type == "transfer":
         return "💸"
 
+    # Для бонуса
+    if entry.operation_type == "bonus":
+        return "🎁"
+
     # По умолчанию
     return OPERATION_ICONS.get(entry.operation_type, "📝")
 
 
 def _get_action_description(entry) -> str | None:
     """Получить описание действия для операции"""
+    # Для бонуса показываем тип бонуса
+    if entry.operation_type == "bonus":
+        subtype = entry.operation_subtype
+        if subtype == "welcome":
+            return "приветственный бонус"
+        return subtype
+
     if entry.operation_subtype:
         return ACTION_ICONS.get(entry.operation_subtype, entry.operation_subtype)
     return None
@@ -136,10 +148,9 @@ def render_personal_stats(
     24.02 14:30 💎 +50 от @username
     24.02 12:00 💸 -100 перевод
     """
-    header = ["📊 *Твоя статистика*"]
-    if dto.chat_title:
-        header.append(f"💬 Чат: *{dto.chat_title}*")
-    header.append(f"💰 Баланс: *{dto.balance}*")
+    header = ["📊 Твоя статистика"]
+    # Не добавляем chat_title здесь, т.к. он добавляется в _show_stats
+    header.append(f"💰 Баланс: {dto.balance}")
     header.append("")
 
     lines: list[str] = header
@@ -181,9 +192,16 @@ def render_personal_stats(
                 counterparty_username = main_entry.counterparty_username
                 extra_info = f" ↩️ от @{counterparty_username}" if counterparty_username else " ↩️ от пользователя"
 
+        # Для бонуса добавляем описание
+        action_desc = None
+        if main_entry.operation_type == "bonus":
+            action_desc = _get_action_description(main_entry)
+
         # Формируем строку
         if initiator:
             lines.append(f"{date} {icon} {sign}{amount}{extra_info} {initiator}")
+        elif action_desc:
+            lines.append(f"{date} {icon} {sign}{amount} {action_desc}")
         else:
             lines.append(f"{date} {icon} {sign}{amount}{extra_info}")
 

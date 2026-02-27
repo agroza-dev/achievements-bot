@@ -49,13 +49,11 @@ async def _show_stats(
         await update.callback_query.edit_message_text(
             text=text,
             disable_web_page_preview=True,
-            parse_mode="Markdown",
         )
     elif update.message:
         await update.message.reply_text(
             text=text,
             disable_web_page_preview=True,
-            parse_mode="Markdown",
         )
 
 
