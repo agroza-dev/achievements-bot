@@ -138,3 +138,28 @@ class DbRatingLedgerRepository:
         )
 
         return [map_rating_ledger_history_entry(row) for row in rows]
+
+    async def has_any_entries_for_user_in_chat(
+        self,
+        *,
+        user_id: int,
+        chat_id: int,
+    ) -> bool:
+        """
+        Проверить, есть ли какие-либо записи в ledger для пользователя в чате.
+
+        Returns:
+            True если есть хотя бы одна запись, False иначе
+        """
+        result = await self.conn.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM rating_ledger
+                WHERE user_id = $1 AND chat_id = $2
+                LIMIT 1
+            )
+            """,
+            user_id,
+            chat_id,
+        )
+        return result or False

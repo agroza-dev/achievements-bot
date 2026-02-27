@@ -210,3 +210,35 @@ class RatingLedgerService:
             meta={"emoji": emoji},
         )
         await self.ledger_repo.add(entry)
+
+    async def record_welcome_bonus(
+        self,
+        *,
+        chat_id: int,
+        user_id: int,
+        amount: int = 100,
+        balance_after: int | None,
+    ) -> None:
+        """
+        Записать операцию начисления приветственного бонуса.
+
+        Args:
+            chat_id: ID чата
+            user_id: Получатель бонуса
+            amount: Сумма бонуса (по умолчанию 100)
+            balance_after: Баланс после операции
+        """
+        entry = RatingLedgerEntryDTO(
+            chat_id=chat_id,
+            user_id=user_id,
+            initiator_user_id=None,  # Системное начисление
+            counterparty_user_id=None,
+            amount=amount,
+            balance_after=balance_after,
+            operation_type="bonus",
+            operation_subtype="welcome",
+            source_type="system",
+            source_id=None,
+            meta={"reason": "welcome_bonus"},
+        )
+        await self.ledger_repo.add(entry)
