@@ -11,3 +11,4 @@ class TransferDirection(str, Enum):
 class TransferIntent:
     amount: int
     direction: TransferDirection
+    recipient: str | None = None
