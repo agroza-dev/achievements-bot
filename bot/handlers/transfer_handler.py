@@ -90,7 +90,7 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif transfer_result.status is TransferStatus.QUIET_STOP:
         logger.debug("Transfer is not processable. Just ignored")
         # Не каждое сообщение должно быть трансфером.
-        # Если трансфер не нашли, значит его там нети не нужно его никак в этом handler обрабатывать
+        # Если трансфер не нашли, значит его там нет и не нужно его никак в этом handler обрабатывать
 
     elif transfer_result.status is TransferStatus.NOT_FOUND:
         logger.debug("Transfer not found in message. Just ignored")

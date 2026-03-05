@@ -65,3 +65,22 @@ class ChatUserRepository:
             user_id,
         )
         return map_chat_user(record) if record else None
+
+    async def list_active_user_ids_for_chat(self, chat_id: int) -> list[int]:
+        """
+        Получить ID всех активных пользователей чата.
+
+        Args:
+            chat_id: Внутренний ID чата
+
+        Returns:
+            Список ID активных пользователей
+        """
+        query = """
+            SELECT user_id
+            FROM chat_users
+            WHERE chat_id = $1 AND is_active = true
+            ORDER BY user_id
+        """
+        rows = await self.conn.fetch(query, chat_id)
+        return [row["user_id"] for row in rows]

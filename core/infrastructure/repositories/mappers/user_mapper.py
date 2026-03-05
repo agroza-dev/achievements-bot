@@ -7,7 +7,9 @@ from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
 
-def map_user(record: Record) -> UserDTO:
+def map_user(record: Record) -> UserDTO | None:
+    if not record:
+        return None
     dto = UserDTO(
         id=record["id"],
         tg_id=record["tg_id"],

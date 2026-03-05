@@ -9,6 +9,7 @@ OPERATION_ICONS = {
     "tax": "🧾",          # налог
     "transfer": "💸",     # перевод между пользователями
     "bonus": "🎁",        # бонус
+    "award": "💸",        # бонус
 }
 
 # Иконки для подтипов операций (action)
@@ -54,6 +55,8 @@ def _get_action_description(entry) -> str | None:
         subtype = entry.operation_subtype
         if subtype == "welcome":
             return "приветственный бонус"
+        if subtype == "award":
+            return "еженедельное зачисление"
         return subtype
 
     if entry.operation_subtype:
