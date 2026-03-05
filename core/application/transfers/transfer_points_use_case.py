@@ -12,6 +12,7 @@ from core.dto.transfer_dto import TransferCommandDTO
 from core.dto.user_dto import UserDTO
 from core.infrastructure.database import DbUnitOfWork
 from core.infrastructure.repositories.chat_message_repository import DbChatMessageRepository
+from core.infrastructure.repositories.chat_settings_repository import ChatSettingsRepository
 from core.infrastructure.repositories.rate_limiter import InMemoryRateLimiter
 from core.infrastructure.repositories.rating_ledger_repository import DbRatingLedgerRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
@@ -111,7 +112,7 @@ class TransferPointsUseCase:
                 message_repo = uow.get_repo(DbChatMessageRepository)
                 rating_repo = uow.get_repo(DbRatingRepository)
                 ledger_repo = uow.get_repo(DbRatingLedgerRepository)
-
+                settings_repo = uow.get_repo(ChatSettingsRepository)
                 recipient_user = await _resolve_recipient_user(
                     command=command,
                     user_repo=user_repo,
@@ -136,10 +137,12 @@ class TransferPointsUseCase:
                 logger.debug("Try to transfer")
                 # 3. Применяем трансфер
                 ledger_service = RatingLedgerService(ledger_repo=ledger_repo)
+
                 transfer_service = TransferService(
                     rating_repo=rating_repo,
                     ledger_service=ledger_service,
                     policy=self.policy,
+                    settings_repo=settings_repo,
                 )
 
                 await transfer_service.apply(

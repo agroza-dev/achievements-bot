@@ -5,14 +5,13 @@ from core.domain.transfers.transfer_policy import TransferPolicy
 
 
 class DefaultTransferPolicy(TransferPolicy):
-    def tax(self, amount: int, direction: TransferDirection) -> int:
-        percent = {
-            TransferDirection.POSITIVE: 0.1,
-            TransferDirection.NEGATIVE: 0.2,
-        }.get(direction, 0)
-
-        if percent == 0:
+    def tax(self, amount: int, direction: TransferDirection, tax_rate: float = 0.0) -> int:
+        # Если налог не настроен (0%), не берём налог
+        if tax_rate == 0.0:
             return 0
+
+        # Конвертируем процент в долю (15.0 -> 0.15)
+        percent = tax_rate / 100.0
 
         raw_tax = amount * percent
         tax_in_tenths = ceil_to_tenths(raw_tax)

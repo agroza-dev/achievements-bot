@@ -5,6 +5,7 @@ from core.application.rating_ledger.rating_ledger_service import RatingLedgerSer
 from core.application.transfers.transfer_intent import TransferDirection, TransferIntent
 from core.application.transfers.transfer_result import TransferResult
 from core.domain.transfers.transfer_policy import TransferPolicy
+from core.infrastructure.repositories.chat_settings_repository import ChatSettingsRepository
 from core.infrastructure.repositories.rating_repository import DbRatingRepository
 
 logger = logging.getLogger(__name__)
@@ -17,10 +18,19 @@ class TransferService:
         rating_repo: DbRatingRepository,
         ledger_service: RatingLedgerService,
         policy: TransferPolicy,
+        settings_repo: ChatSettingsRepository,
     ):
         self.rating_repo = rating_repo
         self.ledger_service = ledger_service
         self.policy = policy
+        self.settings_repo = settings_repo
+
+    async def _get_tax_rate(self, chat_id: int) -> float:
+        """Получить процент налога для чата."""
+        settings = await self.settings_repo.get_settings_sync(chat_id)
+        if settings and settings.tax_enabled:
+            return settings.tax_rate
+        return 0.0
 
     async def apply(
         self,
@@ -31,7 +41,9 @@ class TransferService:
         recipient_username: str | None,
         intent: TransferIntent,
     ) -> TransferResult|None:
-        tax = self.policy.tax(intent.amount, intent.direction)
+        # Получаем налог из настроек чата
+        tax_rate = await self._get_tax_rate(chat_id)
+        tax = self.policy.tax(intent.amount, intent.direction, tax_rate)
 
         # Генерируем source_id для связи записей о переводе и налоге
         # Используем текущий timestamp в миллисекундах как уникальный ID
