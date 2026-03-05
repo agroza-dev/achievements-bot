@@ -30,9 +30,10 @@ class DbRatingLedgerRepository:
                 operation_subtype,
                 source_type,
                 source_id,
-                meta
+                meta,
+                operation_key
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             """,
             entry.chat_id,
             entry.user_id,
@@ -45,6 +46,7 @@ class DbRatingLedgerRepository:
             entry.source_type,
             entry.source_id,
             json.dumps(entry.meta),
+            entry.operation_key,
         )
 
     async def find_by_source(

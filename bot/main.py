@@ -1,6 +1,8 @@
 """Главный модуль для запуска Telegram бота."""
 
+
 import httpx
+from fastscheduler import FastScheduler
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -22,13 +24,14 @@ from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
 from bot.handlers.transfer_handler import transfer_handler
 from bot.handlers.user_added_to_chat_handler import user_added_to_chat_handler
-from core.config import settings
+from core.config import ProjectPaths, settings
 from core.container import Container
 from core.infrastructure.database import DatabaseManager
 from core.infrastructure.repositories.bot_persistence_repository import (
     PostgreSQLBotPersistenceRepository,
 )
 from core.infrastructure.repositories.postgresql_persistence import PostgreSQLPersistence
+from core.infrastructure.scheduler import AwardScheduler
 from utils import trace_logger
 from utils.logger import logger
 
@@ -37,6 +40,9 @@ async def on_startup(application):
     trace_logger.get_logger(__name__)
     """Инициализация при старте бота."""
     logger.info("Bot startup")
+
+    # Создаём все необходимые директории
+    ProjectPaths.ensure_dirs()
 
     # Инициализируем менеджер базы данных
     db_manager = DatabaseManager()
@@ -59,6 +65,20 @@ async def on_startup(application):
     application.bot_data['db_manager'] = db_manager  # Для обратной совместимости, если нужно
     application.bot_data['persistence_repository'] = persistence._repository
 
+    # Инициализируем и запускаем планировщик периодических зачислений
+    scheduler = FastScheduler(
+        quiet=settings.scheduler.quiet,
+        state_file=settings.scheduler.state_file,
+    )
+    award_scheduler = AwardScheduler(
+        scheduler=scheduler,
+        db_manager=db_manager,
+    )
+    application.bot_data['award_scheduler'] = award_scheduler
+
+    # Запускаем scheduler и worker
+    await award_scheduler.start()
+
     logger.info("Container initialized and ready")
 
 
@@ -66,7 +86,14 @@ async def on_shutdown(application):
     """Очистка при остановке бота."""
     logger.info("Bot shutdown")
 
+    # Останавливаем планировщик периодических зачислений
+    award_scheduler: AwardScheduler = application.bot_data.get('award_scheduler')
+    if award_scheduler:
+        await award_scheduler.stop()
+        logger.info("Award scheduler stopped")
+
     # Сохраняем данные из persistence в БД
+    # TODO: Это больше не требуется, нужно будет выпилить
     persistence: PostgreSQLPersistence = application.persistence  # type: ignore[assignment]
     if persistence:
         await persistence.flush()

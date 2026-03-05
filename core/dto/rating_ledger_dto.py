@@ -17,6 +17,7 @@ class RatingLedgerEntryDTO:
     source_id: int | None
     meta: dict[str, Any] = field(default_factory=dict)
     counterparty_user_id: int | None = None
+    operation_key: str = ''  # Для idempotency (например, period_key="2026-W09"), по умолчанию ''
 
 
 @dataclass(slots=True)
