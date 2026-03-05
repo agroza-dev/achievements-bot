@@ -242,3 +242,72 @@ class RatingLedgerService:
             meta={"reason": "welcome_bonus"},
         )
         await self.ledger_repo.add(entry)
+
+    async def record_periodic_award(
+        self,
+        *,
+        chat_id: int,
+        user_id: int,
+        amount: int,
+        balance_after: int | None,
+        period_key: str,
+    ) -> None:
+        """
+        Записать операцию периодического зачисления.
+
+        Args:
+            chat_id: ID чата
+            user_id: Получатель зачисления
+            amount: Сумма зачисления
+            balance_after: Баланс после операции
+            period_key: Ключ периода (например, "2026-W09") для idempotency
+        """
+        entry = RatingLedgerEntryDTO(
+            chat_id=chat_id,
+            user_id=user_id,
+            initiator_user_id=None,  # Системное зачисление
+            counterparty_user_id=None,
+            amount=amount,
+            balance_after=balance_after,
+            operation_type="award",
+            operation_subtype="periodic_award",
+            source_type="system",
+            source_id=None,
+            meta={"reason": "periodic_award"},
+            operation_key=period_key,
+        )
+        await self.ledger_repo.add(entry)
+
+    async def record_one_time_award(
+        self,
+        *,
+        chat_id: int,
+        user_id: int,
+        amount: int,
+        balance_after: int | None,
+        comment: str = "",
+    ) -> None:
+        """
+        Записать операцию разового зачисления.
+
+        Args:
+            chat_id: ID чата
+            user_id: Получатель зачисления
+            amount: Сумма зачисления
+            balance_after: Баланс после операции
+            comment: Комментарий к зачислению (например, "Баг-баунти", "Ивент")
+        """
+        entry = RatingLedgerEntryDTO(
+            chat_id=chat_id,
+            user_id=user_id,
+            initiator_user_id=None,  # Системное зачисление
+            counterparty_user_id=None,
+            amount=amount,
+            balance_after=balance_after,
+            operation_type="award",
+            operation_subtype="one_time_award",
+            source_type="manual",
+            source_id=None,
+            meta={"reason": "one_time_award", "comment": comment},
+        )
+        await self.ledger_repo.add(entry)
