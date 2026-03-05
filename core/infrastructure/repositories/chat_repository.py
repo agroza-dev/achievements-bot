@@ -48,8 +48,8 @@ class ChatRepository:
 
     async def upsert(self, chat: Chat) -> ChatDTO:
         query = """
-            INSERT INTO chats (tg_id, type, title, is_active, settings)
-            VALUES ($1, $2, $3, true, '{}')
+            INSERT INTO chats (tg_id, type, title, is_active)
+            VALUES ($1, $2, $3, true)
             ON CONFLICT (tg_id) DO UPDATE
             SET
                 type = EXCLUDED.type,
@@ -65,7 +65,19 @@ class ChatRepository:
             chat.title,
         )
 
+        # Создаём настройки по умолчанию если их нет
+        if record:
+            await self._ensure_settings_exist(record["id"])
+
         return map_chat(record)
+
+    async def _ensure_settings_exist(self, chat_id: int) -> None:
+        """Создать настройки по умолчанию если их нет."""
+        await self.conn.execute("""
+            INSERT INTO chat_settings (chat_id)
+            VALUES ($1)
+            ON CONFLICT (chat_id) DO NOTHING
+        """, chat_id)
 
     async def deactivate(self, chat_id: int):
         """Деактивировать чат."""
@@ -84,3 +96,22 @@ class ChatRepository:
             WHERE id = $1
         """
         await self.conn.execute(query, chat_id)
+
+    async def list_active_chats(self) -> list[dict]:
+        """
+        Получить все активные чаты с флагом включения зачислений.
+
+        Returns:
+            Список dict с полями: chat_id, is_award_enabled
+        """
+        query = """
+            SELECT
+                c.id as chat_id,
+                COALESCE(cs.periodic_award_enabled, true) as is_award_enabled
+            FROM chats c
+            LEFT JOIN chat_settings cs ON c.id = cs.chat_id
+            WHERE c.is_active = true
+            ORDER BY c.id
+        """
+        rows = await self.conn.fetch(query)
+        return [dict(row) for row in rows]
