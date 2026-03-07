@@ -4,11 +4,12 @@
 Замеряет скорость обработки сообщений разной длины и сложности.
 """
 import time
+from typing import Final
 
 from core.application.transfers.nlp_transfer_parser import NLPTransferParser
 
 # Тестовые сообщения
-TEST_MESSAGES = [
+TEST_MESSAGES: Final[list[str]] = [
     # Короткие (regex-уровень)
     "+10",
     "-5",

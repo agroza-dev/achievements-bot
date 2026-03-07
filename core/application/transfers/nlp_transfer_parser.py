@@ -1,4 +1,5 @@
 import re
+from typing import ClassVar, Final
 
 import pymorphy3
 
@@ -21,23 +22,23 @@ class NLPTransferParser:
     - @username mentions (из Telegram entities)
     """
 
-    MAX_LENGTH = 150
+    MAX_LENGTH: Final[int] = 150
 
     # Глаголы/маркеры положительного трансфера (дать, передать)
-    POSITIVE_TRIGGERS = {
+    POSITIVE_TRIGGERS: ClassVar[set[str]] = {
         "дать", "давать", "передай", "передать", "отдать",
-        "лови", "ловить", "забери", "забрать", "получи", "получить",
+        "лови", "ловить", "получи", "получить",
         "начисли", "начислить", "подари", "подарить", "кинь", "кидать",
         "брось", "бросать", "переведи", "перевести", "отправь", "отправить",
         "возьми", "брать", "взять",
         # Слова "плюс" и варианты
         "плюс", "plus",
         # Увеличение рейтинга
-        "увеличить", "увеличивать", "увеличиваем", "увеличиваю", "увеличиваешь"
+        "увеличить", "увеличивать", "увеличиваем", "увеличиваю", "увеличиваешь",
     }
 
     # Глаголы/маркеры отрицательного трансфера (списать, забрать)
-    NEGATIVE_TRIGGERS = {
+    NEGATIVE_TRIGGERS: ClassVar[set[str]] = {
         "списать", "снимать", "отнять", "отнимать", "штраф", "штрафовать",
         "забрать", "отобрать", "вычесть", "вычитать",
         # Слова "минус"
@@ -45,7 +46,14 @@ class NLPTransferParser:
         # Уменьшение рейтинга
         "уменьшить", "уменьшать", "уменьшаем", "уменьшаю", "уменьшаешь",
         # Отбирание
-        "отбираю", "отбирать", "отнимаю"
+        "отбираю", "отбирать", "отнимаю",
+        # Забирание (отрицательное) - не императив
+        "забирать", "забираю",
+    }
+
+    # Токены положительного направления (оригинальные формы, не леммы)
+    POSITIVE_TOKENS: ClassVar[set[str]] = {
+        "забери",  # императив "забрать" — положительное
     }
 
     def __init__(self):
@@ -77,6 +85,14 @@ class NLPTransferParser:
         if self._is_phone_number(text):
             return None
 
+        # Фильтр: математические выражения (1+1, 100-500) — не трансфер
+        if self._is_math_expression(text):
+            return None
+
+        # Фильтр: погода и подобные конструкции (+30, +3 ч к МСК) — не трансфер
+        if self._is_weather_or_time(text):
+            return None
+
         # Токенизация (простая, по пробелам и знакам препинания)
         tokens = re.findall(r"[\w@]+|[^\w\s]", text, flags=re.UNICODE)
 
@@ -92,7 +108,7 @@ class NLPTransferParser:
             return None
 
         # Извлекаем направление
-        direction = self._extract_direction(lemmas, text)
+        direction = self._extract_direction(lemmas, text, tokens)
         if direction is None:
             return None
 
@@ -125,6 +141,52 @@ class NLPTransferParser:
         )
         return bool(phone_pattern.search(text))
 
+    def _is_math_expression(self, text: str) -> bool:
+        """
+        Проверяет, является ли текст математическим выражением.
+        Примеры:
+        - 1+1, 2+2
+        - 100-500 (диапазон)
+        - Сколько будет 1+1
+
+        Не фильтрует:
+        - +100, -100 (трансферы)
+        - @user +100 (трансферы)
+        """
+        # Паттерн: число + пробел? оператор (+/-) + пробел? число
+        # Это ловит 1+1, 1+ 1, 1 +1, 1 + 1, 100-500
+        math_pattern = re.compile(
+            r"\d+\s*[+-]\s*\d+"
+        )
+        return bool(math_pattern.search(text))
+
+    def _is_weather_or_time(self, text: str) -> bool:
+        """
+        Проверяет, является ли текст погодой или временем.
+        Примеры:
+        - +30 (погода)
+        - +3 ч к МСК (временная зона)
+        - -5 градусов (температура)
+
+        Паттерн: знак +/- в начале числа, за которым следует:
+        - Единицы измерения температуры (градусов, °C, °F)
+        - Единицы времени (ч, мин, сек, часа, минут)
+        - Слова "погода", "температура", "МСК", "UTC"
+        """
+        # Паттерн: +/- число с последующими единицами измерения
+        weather_pattern = re.compile(
+            r"[+-]\s*\d+\s*(?:градусов|градуса|градус|°[CF]|ч\s+к\s+МСК|ч\s+к|часов|часа|минут|мин|секунд|сек|погод|температур|МСК|UTC)",
+            re.IGNORECASE
+        )
+        if weather_pattern.search(text):
+            return True
+
+        # Дополнительная проверка: если в тексте есть "погода" и "+число"
+        # Пример: "Сегодня в Сочи +30.А у вас какая погода"
+        return bool(
+            re.search(r"погод", text, re.IGNORECASE) and re.search(r"[+-]\s*\d+", text)
+        )
+
     def _extract_amount(self, text: str) -> int | None:
         """Извлекает первое число из текста."""
         match = re.search(r"\d+", text)
@@ -135,13 +197,33 @@ class NLPTransferParser:
     def _extract_direction(
         self,
         lemmas: list[str],
-        original_text: str
+        original_text: str,
+        tokens: list[str] | None = None
     ) -> TransferDirection | None:
         """
         Определяет направление трансфера по глаголам-триггерам.
 
         Если триггеры не найдены, проверяем наличие '+' или '-' в тексте.
+        Явный знак '-' перед числом имеет приоритет над глаголами.
         """
+        # Сначала проверяем явные знаки + / - перед числом
+        # Паттерн: пробел + знак + пробел? + число (например, "на -500", "на +100")
+        explicit_negative = re.search(r"\s-\s*\d+", original_text)
+        explicit_positive = re.search(r"\s\+\s*\d+", original_text)
+
+        # Если есть явный знак перед числом, он имеет приоритет
+        if explicit_negative and not explicit_positive:
+            return TransferDirection.NEGATIVE
+        if explicit_positive and not explicit_negative:
+            return TransferDirection.POSITIVE
+
+        # Проверяем оригинальные токены на POSITIVE_TOKENS (императивы)
+        if tokens:
+            for token in tokens:
+                if token.lower() in self.POSITIVE_TOKENS:
+                    return TransferDirection.POSITIVE
+
+        # Проверяем леммы на триггеры
         for lemma in lemmas:
             if lemma in self.POSITIVE_TRIGGERS:
                 return TransferDirection.POSITIVE
@@ -149,7 +231,7 @@ class NLPTransferParser:
             if lemma in self.NEGATIVE_TRIGGERS:
                 return TransferDirection.NEGATIVE
 
-        # Fallback: ищем явные знаки + / -
+        # Fallback: ищем явные знаки + / - в любом месте
         if "+" in original_text:
             return TransferDirection.POSITIVE
         if "-" in original_text:

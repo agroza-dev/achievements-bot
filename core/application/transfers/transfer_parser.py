@@ -11,15 +11,21 @@ class TransferParser:
     """
     Гибридный парсер трансферов.
 
-    Сначала пытается распарсить через regex (быстрый путь для +10, -5).
-    Если не получилось — использует NLP-парсер для умных конструкций
+    Сначала проверяет строгое соответствие простым форматам:
+    - +100, -100
+    - @username +100, @username -100
+    
+    Если не подошло — использует NLP-парсер для умных конструкций
     типа "Вася, лови 10 очков", "Передай Саше 20 баллов" и т.д.
 
     Сообщения со ссылками, телефонами и другим "мусором" игнорируются.
     """
 
-    _pattern = re.compile(
-        r"(?P<sign>[+-])\s*(?P<amount>\d+)",
+    # Строгий паттерн для простых трансферов:
+    # - +100, -100 (только знак и число, ничего больше)
+    # - @username +100, @username -100 (опционально упоминание в начале)
+    _strict_pattern = re.compile(
+        r"^(?:@[\w_]+\s+)?(?P<sign>[+-])\s*(?P<amount>\d+)\s*$",
         re.IGNORECASE,
     )
 
@@ -53,8 +59,8 @@ class TransferParser:
         if cls._phone_pattern.search(text):
             return None
 
-        # 3. Быстрый путь: regex для +10, -5, + 100
-        match = cls._pattern.search(text)
+        # 3. Быстрый путь: строгое соответствие для +100, -100, @user +100
+        match = cls._strict_pattern.match(text)
         if match:
             amount = int(match.group("amount"))
             sign = match.group("sign")

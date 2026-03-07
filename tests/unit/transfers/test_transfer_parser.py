@@ -35,10 +35,15 @@ class TestHybridTransferParser:
         assert result.amount == 100
         assert result.direction == TransferDirection.POSITIVE
 
-    def test_regex_in_text(self):
-        """Знак с числом внутри текста: "даю +50 очков" """
+    def test_regex_in_text_with_trigger(self):
+        """
+        Знак с числом внутри текста с глаголом-триггером.
+        "даю +50 очков" → NLP найдёт триггер "давать"
+        """
         result = TransferParser.parse("даю +50 очков")
 
+        # NLP должен найти триггер "давать" и определить направление
+        # Но из-за наличия "+" в тексте, direction будет POSITIVE
         assert result is not None
         assert result.amount == 50
         assert result.direction == TransferDirection.POSITIVE
@@ -488,4 +493,95 @@ class TestHybridTransferParser:
 
         assert result is not None
         assert result.amount == 130
+        assert result.direction == TransferDirection.NEGATIVE
+
+    # === Тесты на ложные срабатывания (из promt.md) ===
+
+    def test_false_positive_weather_msk(self):
+        """Ложное срабатывание: @mad_borodach +3 ч к МСК"""
+        result = TransferParser.parse("@mad_borodach +3 ч к МСК")
+
+        # Не должно парситься — это не трансфер
+        assert result is None
+
+    def test_false_positive_weather_sochi(self):
+        """Ложное срабатывание: Сегодня в Сочи +30"""
+        result = TransferParser.parse("Сегодня в Сочи +30.А у вас какая погода @mad_borodach")
+
+        # Не должно парситься — это не трансфер
+        assert result is None
+
+    def test_false_positive_math(self):
+        """Ложное срабатывание: Сколько будет 1+1"""
+        result = TransferParser.parse("Сколько будет 1+1")
+
+        # Не должно парситься — это не трансфер
+        assert result is None
+
+    def test_false_positive_range(self):
+        """Ложное срабатывание: 100-500"""
+        result = TransferParser.parse("100-500")
+
+        # Не должно парситься — это диапазон, не трансфер
+        assert result is None
+
+    # === Валидные простые форматы (из promt.md) ===
+
+    def test_valid_simple_positive(self):
+        """Валидный: +100"""
+        result = TransferParser.parse("+100")
+
+        assert result is not None
+        assert result.amount == 100
+        assert result.direction == TransferDirection.POSITIVE
+
+    def test_valid_simple_negative(self):
+        """Валидный: -100"""
+        result = TransferParser.parse("-100")
+
+        assert result is not None
+        assert result.amount == 100
+        assert result.direction == TransferDirection.NEGATIVE
+
+    def test_valid_with_mention_positive(self):
+        """Валидный: @mad_borodach +100"""
+        result = TransferParser.parse("@mad_borodach +100")
+
+        assert result is not None
+        assert result.amount == 100
+        assert result.direction == TransferDirection.POSITIVE
+
+    def test_valid_with_mention_negative(self):
+        """Валидный: @mad_borodach -100"""
+        result = TransferParser.parse("@mad_borodach -100")
+
+        assert result is not None
+        assert result.amount == 100
+        assert result.direction == TransferDirection.NEGATIVE
+
+    def test_valid_with_mention_and_space(self):
+        """Валидный: @mad_borodach +55"""
+        result = TransferParser.parse("@mad_borodach +55")
+
+        assert result is not None
+        assert result.amount == 55
+        assert result.direction == TransferDirection.POSITIVE
+
+    def test_valid_with_space(self):
+        """Валидный: + 100"""
+        result = TransferParser.parse("+ 100")
+
+        assert result is not None
+        assert result.amount == 100
+        assert result.direction == TransferDirection.POSITIVE
+
+    # === NLP должен обрабатывать сообщения с глаголами ===
+
+    def test_nlp_zabirayu(self):
+        """NLP: @mad_borodach забираю 10"""
+        result = TransferParser.parse("@mad_borodach забираю 10")
+
+        # NLP должен найти триггер "забирать" (NEGATIVE)
+        assert result is not None
+        assert result.amount == 10
         assert result.direction == TransferDirection.NEGATIVE
