@@ -85,6 +85,13 @@ class UserRepository:
         record = await self.conn.fetchrow(query, user_id)
         return map_user(record) if record else None
 
+    async def get_by_ids(self, user_ids: list[int]) -> list[UserDTO]:
+        if not user_ids:
+            return []
+        query = "SELECT * FROM users WHERE id = ANY($1)"
+        records = await self.conn.fetch(query, user_ids)
+        return [map_user(record) for record in records if record]
+
     async def upsert_bot(self, bot_id: int, username: str, first_name: str, last_name: str, added_by: int) -> UserDTO:
         query = """
                 INSERT INTO users (tg_id, username, first_name, last_name, is_bot, added_by_user)

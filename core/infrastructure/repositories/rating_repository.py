@@ -60,10 +60,10 @@ class DbRatingRepository:
         query = """
             SELECT user_id, rating
             FROM chat_users
-            WHERE chat_id = :chat_id
+            WHERE chat_id = $1
             ORDER BY rating DESC
-            LIMIT :limit
-                """
+            LIMIT $2
+            """
         rows = await self.conn.fetch(
             query,
             chat_id,

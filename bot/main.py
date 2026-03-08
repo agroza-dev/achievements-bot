@@ -17,6 +17,7 @@ from bot.handlers.bot_membership_handler import bot_membership_handler
 from bot.handlers.ensure_context_handler import ensure_context_handler
 from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
+from bot.handlers.leaderboard_handler import leaderboard_callback_handler, leaderboard_handler
 from bot.handlers.left_chat_member_handler import left_chat_member_handler
 from bot.handlers.message_metadata_handler import message_metadata_handler
 from bot.handlers.personal_stats_handler import personal_stats_callback_handler, personal_stats_handler
@@ -175,6 +176,14 @@ def main():
         CallbackQueryHandler(
             personal_stats_callback_handler,
             pattern="^stats:chat:",
+        ),
+        group=2,
+    )
+    application.add_handler(CommandHandler("leaderboard", leaderboard_handler), group=2)
+    application.add_handler(
+        CallbackQueryHandler(
+            leaderboard_callback_handler,
+            pattern="^leaderboard:chat:",
         ),
         group=2,
     )
