@@ -129,6 +129,11 @@ class Container:
         from core.application.chat_lifecycle.migrate_chat import MigrateChatUseCase
         return MigrateChatUseCase(self.get_uow_factory())
 
+    def get_update_chat_title_use_case(self):
+        """Создать use case для обновления названия чата."""
+        from core.application.chat_lifecycle.update_chat_title import UpdateChatTitleUseCase
+        return UpdateChatTitleUseCase(self.get_uow_factory())
+
     def get_reaction_policy(self) -> ReactionPolicy:
         """
         Получить политику обработки реакций (singleton).

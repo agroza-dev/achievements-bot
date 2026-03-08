@@ -21,6 +21,7 @@ from bot.handlers.error_handler import error_handler
 from bot.handlers.leaderboard_handler import leaderboard_callback_handler, leaderboard_handler
 from bot.handlers.left_chat_member_handler import left_chat_member_handler
 from bot.handlers.message_metadata_handler import message_metadata_handler
+from bot.handlers.new_chat_title_handler import new_chat_title_handler
 from bot.handlers.personal_stats_handler import personal_stats_callback_handler, personal_stats_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
@@ -153,6 +154,10 @@ def main():
     )
     application.add_handler(
         MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration_handler),
+        group=0,
+    )
+    application.add_handler(
+        MessageHandler(filters.StatusUpdate.NEW_CHAT_TITLE, new_chat_title_handler),
         group=0,
     )
     # Handlers

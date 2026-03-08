@@ -1,4 +1,4 @@
-"""Интеграционные тесты для ChatRepository.migrate_chat."""
+"""Интеграционные тесты для ChatRepository.migrate_chat и update_title."""
 
 import pytest
 from telegram import Chat
@@ -100,3 +100,35 @@ class TestChatRepositoryMigrate:
 
         # Проверяем что timestamp обновился
         assert new_updated_at >= old_updated_at
+
+    @pytest.mark.asyncio
+    async def test_update_title_success(self, chat_repo: ChatRepository):
+        """Тест: успешное обновление названия чата."""
+        # Создаём чат
+        old_chat = Chat(id=-400, type="group", title="Old Title")
+        await chat_repo.upsert(old_chat)
+
+        # Обновляем название
+        new_title = "New Title"
+        updated = await chat_repo.update_title(
+            tg_id=-400,
+            new_title=new_title,
+        )
+
+        assert updated is True
+
+        # Проверяем что название обновилось
+        chat = await chat_repo.get_by_tg_id(-400)
+        assert chat is not None
+        assert chat.title == "New Title"
+
+    @pytest.mark.asyncio
+    async def test_update_title_not_found(self, chat_repo: ChatRepository):
+        """Тест: обновление названия несуществующего чата."""
+        # Пытаемся обновить название чата который не существует
+        updated = await chat_repo.update_title(
+            tg_id=-999,
+            new_title="New Title",
+        )
+
+        assert updated is False

@@ -118,6 +118,25 @@ class ChatRepository:
         result = await self.conn.execute(query, new_tg_id, old_tg_id)
         return result != "UPDATE 0"
 
+    async def update_title(self, tg_id: int, new_title: str) -> bool:
+        """
+        Обновить название чата.
+
+        Args:
+            tg_id: Идентификатор чата в Telegram
+            new_title: Новое название чата
+
+        Returns:
+            True если обновление успешно, False если чат не найден
+        """
+        query = """
+            UPDATE chats
+            SET title = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE tg_id = $2
+        """
+        result = await self.conn.execute(query, new_title, tg_id)
+        return result != "UPDATE 0"
+
     async def list_active_chats(self) -> list[dict]:
         """
         Получить все активные чаты с флагом включения зачислений.
