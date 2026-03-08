@@ -124,6 +124,11 @@ class Container:
     def get_user_left_chat_use_case(self) -> UserLeftChatUseCase:
         return UserLeftChatUseCase(self.get_uow_factory())
 
+    def get_migrate_chat_use_case(self):
+        """Создать use case для миграции чата (группа -> супергруппа)."""
+        from core.application.chat_lifecycle.migrate_chat import MigrateChatUseCase
+        return MigrateChatUseCase(self.get_uow_factory())
+
     def get_reaction_policy(self) -> ReactionPolicy:
         """
         Получить политику обработки реакций (singleton).

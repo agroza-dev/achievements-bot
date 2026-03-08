@@ -14,6 +14,7 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 
 from bot.handlers.bot_membership_handler import bot_membership_handler
+from bot.handlers.chat_migration_handler import chat_migration_handler
 from bot.handlers.ensure_context_handler import ensure_context_handler
 from bot.handlers.ensure_context_reaction_handler import ensure_context_reaction_handler
 from bot.handlers.error_handler import error_handler
@@ -148,6 +149,10 @@ def main():
     )
     application.add_handler(
         MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_chat_member_handler),
+        group=0,
+    )
+    application.add_handler(
+        MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration_handler),
         group=0,
     )
     # Handlers

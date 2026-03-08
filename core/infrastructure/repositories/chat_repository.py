@@ -97,6 +97,27 @@ class ChatRepository:
         """
         await self.conn.execute(query, chat_id)
 
+    async def migrate_chat(self, old_tg_id: int, new_tg_id: int) -> bool:
+        """
+        Миграция чата при превращении группы в супергруппу.
+
+        Обновляет tg_id чата в базе данных, сохраняя все связанные данные.
+
+        Args:
+            old_tg_id: Старый идентификатор чата (группа)
+            new_tg_id: Новый идентификатор чата (супергруппа)
+
+        Returns:
+            True если миграция успешна, False если чат не найден
+        """
+        query = """
+            UPDATE chats
+            SET tg_id = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE tg_id = $2
+        """
+        result = await self.conn.execute(query, new_tg_id, old_tg_id)
+        return result != "UPDATE 0"
+
     async def list_active_chats(self) -> list[dict]:
         """
         Получить все активные чаты с флагом включения зачислений.
