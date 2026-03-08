@@ -60,7 +60,8 @@ class DbRatingRepository:
         query = """
             SELECT user_id, rating
             FROM chat_users
-            WHERE chat_id = $1
+            LEFT JOIN users on chat_users.user_id= users.id
+            WHERE chat_id = $1 and users.is_bot = false
             ORDER BY rating DESC
             LIMIT $2
             """
