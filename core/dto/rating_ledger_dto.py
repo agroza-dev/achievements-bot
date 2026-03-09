@@ -37,6 +37,7 @@ class RatingLedgerHistoryEntryDTO:
     created_at: datetime
     initiator_username: str | None = None
     counterparty_username: str | None = None
+    tax: int | None = None
 
 @dataclass(slots=True)
 class RatingLedgerRecordDTO:

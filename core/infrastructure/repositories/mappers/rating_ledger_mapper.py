@@ -34,6 +34,9 @@ def map_rating_ledger_history_entry(record: Record) -> RatingLedgerHistoryEntryD
     elif meta is None:
         meta = {}
 
+    # Извлекаем tax из meta (для записей типа transfer)
+    tax = meta.get("tax")
+
     return RatingLedgerHistoryEntryDTO(
         chat_id=record["chat_id"],
         user_id=record["user_id"],
@@ -49,6 +52,7 @@ def map_rating_ledger_history_entry(record: Record) -> RatingLedgerHistoryEntryD
         created_at=record["created_at"],
         initiator_username=record.get("initiator_username"),
         counterparty_username=record.get("counterparty_username"),
+        tax=tax,
     )
 
 

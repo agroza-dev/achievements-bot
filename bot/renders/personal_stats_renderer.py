@@ -1,6 +1,9 @@
+import logging
 from datetime import UTC, datetime
 
 from core.dto.personal_stats_dto import PersonalStatsDTO
+
+logger = logging.getLogger(__name__)
 
 # Иконки для типов операций
 OPERATION_ICONS = {
@@ -151,10 +154,7 @@ def render_personal_stats(
     24.02 14:30 💎 +50 от @username
     24.02 12:00 💸 -100 перевод
     """
-    header = ["📊 Выписка по балансу"]
-    # Не добавляем chat_title здесь, т.к. он добавляется в _show_stats
-    header.append(f"💰 Баланс: {dto.balance}")
-    header.append("")
+    header = ["📊 Выписка по балансу", f"💰 Баланс: {dto.balance}", ""]
 
     lines: list[str] = header
 
@@ -165,7 +165,7 @@ def render_personal_stats(
     # Группируем записи по source_id
     grouped = _group_entries_by_source(dto.entries)
 
-    for main_entry, related_entries in grouped:
+    for main_entry, _related_entries in grouped:
         # Конвертируем время в локальный часовой пояс пользователя
         local_dt = _convert_to_timezone(main_entry.created_at, user_timezone)
 
@@ -175,25 +175,67 @@ def render_personal_stats(
         # Иконка операции
         icon = _get_operation_icon(main_entry)
 
+        # Для перевода формируем сообщение по новому формату
+        if main_entry.operation_type == "transfer":
+            # Определяем, является ли текущий пользователь инициатором трансфера
+            is_initiator = (main_entry.user_id == main_entry.initiator_user_id)
+
+            counterparty_username = main_entry.counterparty_username
+            # direction хранится в operation_subtype
+            direction = main_entry.operation_subtype or ""
+            tax_amount = abs(main_entry.tax) if main_entry.tax else 0
+            amount = abs(main_entry.amount)
+
+            logger.debug(
+                "Transfer entry: user_id=%s, initiator_user_id=%s, is_initiator=%s, "
+                "amount=%s, direction=%s, tax=%s, counterparty=%s",
+                main_entry.user_id,
+                main_entry.initiator_user_id,
+                is_initiator,
+                main_entry.amount,
+                direction,
+                main_entry.tax,
+                counterparty_username,
+            )
+
+            if is_initiator:
+                # Инициатор трансфера
+                counterparty = f"@{counterparty_username}" if counterparty_username else "пользователю"
+
+                if direction == "negative":
+                    # Отрицательный трансфер (штраф)
+                    # Формат: "штраф для @user удержано 100 + налог 10"
+                    tax_info = f" + налог {tax_amount}" if tax_amount > 0 else ""
+                    lines.append(f"{date} {icon} штраф для {counterparty} удержано {amount}{tax_info}")
+                else:
+                    # Положительный трансфер
+                    # Формат: "трансфер для @user списано 100 + налог 10"
+                    tax_info = f" + налог {tax_amount}" if tax_amount > 0 else ""
+                    lines.append(f"{date} {icon} трансфер для {counterparty} списано {amount}{tax_info}")
+            else:
+                # Получатель трансфера
+                initiator_username = main_entry.initiator_username
+                initiator = f"@{initiator_username}" if initiator_username else "пользователя"
+
+                if direction == "negative":
+                    # Отрицательный трансфер (штраф)
+                    # Формат: "штраф от @user списано 100"
+                    lines.append(f"{date} {icon} штраф от {initiator} списано {amount}")
+                else:
+                    # Положительный трансфер
+                    # Формат: "трансфер от @user начислено 100"
+                    lines.append(f"{date} {icon} трансфер от {initiator} начислено {amount}")
+
+            # Налоги уже учтены в основной строке для отправителя
+            # Для получателя налоги не показываем
+            continue
+
         # Сумма со знаком
         sign = "+" if main_entry.amount > 0 else "−"
         amount = abs(main_entry.amount)
 
         # Инициатор (если не сам пользователь)
-        # Для переводов не показываем инициатора, т.к. это избыточно
-        initiator = None if main_entry.operation_type == "transfer" else _format_initiator(main_entry, current_user_id or main_entry.user_id)
-
-        # Для перевода добавляем информацию о получателе/отправителе
-        extra_info = ""
-        if main_entry.operation_type == "transfer":
-            if main_entry.amount < 0:
-                # Отправка перевода
-                counterparty_username = main_entry.counterparty_username
-                extra_info = f" ↪️ @{counterparty_username}" if counterparty_username else " ↪️ пользователю"
-            else:
-                # Получение перевода
-                counterparty_username = main_entry.counterparty_username
-                extra_info = f" ↩️ от @{counterparty_username}" if counterparty_username else " ↩️ от пользователя"
+        initiator = _format_initiator(main_entry, current_user_id or main_entry.user_id)
 
         # Для бонуса добавляем описание
         action_desc = None
@@ -202,17 +244,11 @@ def render_personal_stats(
 
         # Формируем строку
         if initiator:
-            lines.append(f"{date} {icon} {sign}{amount}{extra_info} {initiator}")
+            lines.append(f"{date} {icon} {sign}{amount} от {initiator}")
         elif action_desc:
             lines.append(f"{date} {icon} {sign}{amount} {action_desc}")
         else:
-            lines.append(f"{date} {icon} {sign}{amount}{extra_info}")
-
-        # Добавляем связанные записи (налоги)
-        for related in related_entries:
-            tax_sign = "+" if related.amount > 0 else "−"
-            tax_amount = abs(related.amount)
-            lines.append(f"                    🧾 {tax_sign}{tax_amount} налог")
+            lines.append(f"{date} {icon} {sign}{amount}")
 
     return "\n".join(lines)
 

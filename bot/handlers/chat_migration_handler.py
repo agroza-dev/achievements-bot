@@ -64,7 +64,7 @@ async def chat_migration_handler(update: Update, context: ContextTypes.DEFAULT_T
 
         old_chat = Chat(
             id=old_chat_id,
-            type="group",
+            type="supergroup",
             title=new_chat.title,
             username=new_chat.username,
         )
