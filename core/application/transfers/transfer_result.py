@@ -16,3 +16,8 @@ class TransferStatus(str, Enum):
 class TransferResult:
     status: TransferStatus
     message: str | None = None
+    recipient_username: str | None = None
+    amount: int | None = None
+    tax: int | None = None
+    initiator_balance: int | None = None
+    required_amount: int | None = None

@@ -124,14 +124,26 @@ class TransferPointsUseCase:
                     logger.debug("Transfer initiator user_id is same as initiator_user_id")
                     return TransferResult(status=TransferStatus.FORBIDDEN, message="Нельзя переводить самому себе")
 
-                tax = self.policy.tax(intent.amount, intent.direction)
-                # инициатор всегда платит
-                initiator_action_cost = intent.amount + tax
+                # Получаем текущий баланс для проверки достаточности средств
+                # Налог рассчитывается один раз и используется для проверки и применения
                 initiator_current_balance = await rating_repo.get_current(command.chat_id, command.initiator_user_id)
+
+                # Рассчитываем налог с учётом настроек чата
+                settings = await settings_repo.get_settings_sync(command.chat_id)
+                tax_rate = settings.tax_rate if settings and settings.tax_enabled else 0.0
+                tax = self.policy.tax(intent.amount, intent.direction, tax_rate)
+                initiator_action_cost = intent.amount + tax
 
                 if initiator_action_cost > initiator_current_balance:
                     logger.debug("Transfer initiator has not insufficient balance")
-                    return TransferResult(status=TransferStatus.INSUFFICIENT_FUNDS)
+                    return TransferResult(
+                        status=TransferStatus.INSUFFICIENT_FUNDS,
+                        recipient_username=recipient_user.username,
+                        amount=intent.amount,
+                        tax=tax,
+                        initiator_balance=initiator_current_balance,
+                        required_amount=initiator_action_cost,
+                    )
 
 
                 logger.debug("Try to transfer")
@@ -142,17 +154,23 @@ class TransferPointsUseCase:
                     rating_repo=rating_repo,
                     ledger_service=ledger_service,
                     policy=self.policy,
-                    settings_repo=settings_repo,
                 )
 
-                await transfer_service.apply(
+                apply_result = await transfer_service.apply(
                     chat_id=command.chat_id,
                     initiator_user_id=command.initiator_user_id,
                     recipient_user_id=recipient_user.id,
-                    recipient_username=recipient_user.username,
                     intent=intent,
+                    tax=tax,
                 )
-            return TransferResult(status=TransferStatus.SUCCESS)
+
+                return TransferResult(
+                    status=TransferStatus.SUCCESS,
+                    recipient_username=recipient_user.username,
+                    amount=apply_result.amount,
+                    tax=apply_result.tax,
+                    initiator_balance=apply_result.initiator_balance_after,
+                )
         except RecipientNotFoundError:
             logger.error("Error for command %s", command, exc_info=True)
             return TransferResult(status=TransferStatus.QUIET_STOP)

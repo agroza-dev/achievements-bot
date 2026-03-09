@@ -66,9 +66,18 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await bot_gateway.set_message_reaction(
             message.chat_id, message.message_id, reaction=ReactionEmoji.WRITING_HAND
         )
+        recipient_display = f"@{transfer_result.recipient_username}" if transfer_result.recipient_username else "пользователю"
+        total_deducted = (transfer_result.amount or 0) + (transfer_result.tax or 0)
         await bot_gateway.send_message(
             chat_id=ctx.user.tg_id,
-            text="Трансфер успешно выполнен 👍",
+            text=(
+                f"✅ Трансфер успешно выполнен!\n\n"
+                f"Получатель: {recipient_display}\n"
+                f"Сумма трансфера: {transfer_result.amount or 0}\n"
+                f"Налог: {transfer_result.tax or 0}\n"
+                f"Всего списано: {total_deducted}\n"
+                f"Ваш баланс: {transfer_result.initiator_balance or 0}"
+            ),
         )
 
     elif transfer_result.status is TransferStatus.FORBIDDEN:
@@ -76,15 +85,25 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await bot_gateway.send_message(
             chat_id=ctx.user.tg_id,
             text=transfer_result.message or "Запрещённое действие",
+            disable_notification=True,
         )
 
     elif transfer_result.status is TransferStatus.INSUFFICIENT_FUNDS:
         await bot_gateway.set_message_reaction(
             message.chat_id, message.message_id, reaction=ReactionEmoji.PILL
         )
+        recipient_display = f"@{transfer_result.recipient_username}" if transfer_result.recipient_username else "пользователю"
+        missing = (transfer_result.required_amount or 0) - (transfer_result.initiator_balance or 0)
         await bot_gateway.send_message(
             chat_id=ctx.user.tg_id,
-            text="Недостаточно очков для трансфера",
+            text=(
+                f"❌ Недостаточный баланс для трансфера\n\n"
+                f"Получатель: {recipient_display}\n"
+                f"Требуется: {transfer_result.required_amount or 0}\n"
+                f"Включая налог: {transfer_result.tax or 0}\n"
+                f"Ваш текущий баланс: {transfer_result.initiator_balance or 0}\n"
+                f"Не хватает: {missing}"
+            ),
         )
 
     elif transfer_result.status is TransferStatus.QUIET_STOP:
