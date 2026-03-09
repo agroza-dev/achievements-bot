@@ -69,7 +69,7 @@ async def personal_stats_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     if chat.type != "private":
         await update.message.reply_text(
-            "📊 Посмотреть личную статистику можно только в личных сообщениях с ботом."
+            "📊 Посмотреть историю изменения баланса можно только в личных сообщениях с ботом."
         )
         return
 
