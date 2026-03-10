@@ -11,7 +11,7 @@ from utils.logger import prettify
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_LIMIT = 15
+DEFAULT_LIMIT = 25
 
 
 async def _show_stats(

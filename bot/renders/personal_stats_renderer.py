@@ -12,7 +12,7 @@ OPERATION_ICONS = {
     "tax": "🧾",          # налог
     "transfer": "💸",     # перевод между пользователями
     "bonus": "🎁",        # бонус
-    "award": "💸",        # бонус
+    "award": "🎁",        # системное зачисление (periodic_award, one_time_award)
 }
 
 # Иконки для подтипов операций (action)
@@ -53,17 +53,53 @@ def _get_operation_icon(entry) -> str:
 
 def _get_action_description(entry) -> str | None:
     """Получить описание действия для операции"""
+    logger.info(
+        "[ACTION_DESC] operation_type=%s, operation_subtype=%s, meta=%s",
+        entry.operation_type,
+        entry.operation_subtype,
+        entry.meta,
+    )
+
     # Для бонуса показываем тип бонуса
     if entry.operation_type == "bonus":
         subtype = entry.operation_subtype
         if subtype == "welcome":
+            logger.info("[ACTION_DESC] bonus/welcome -> приветственный бонус")
             return "приветственный бонус"
         if subtype == "award":
+            logger.info("[ACTION_DESC] bonus/award -> еженедельное зачисление")
             return "еженедельное зачисление"
+        logger.info(f"[ACTION_DESC] bonus/{subtype} -> {subtype}")
+        return subtype
+
+    # Для award (periodic_award, one_time_award) показываем описание с комментарием
+    if entry.operation_type == "award":
+        subtype = entry.operation_subtype
+        comment = entry.meta.get("comment", "") if entry.meta else ""
+
+        logger.info(
+            "[ACTION_DESC] award subtype=%s, comment=%s",
+            subtype,
+            comment,
+        )
+
+        if subtype == "periodic_award":
+            logger.info("[ACTION_DESC] award/periodic_award -> периодическое зачисление")
+            return "периодическое зачисление"
+        if subtype == "one_time_award":
+            if comment:
+                logger.info(f"[ACTION_DESC] award/one_time_award с комментарием -> разовое зачисление ({comment})")
+                return f"разовое зачисление ({comment})"
+            logger.info("[ACTION_DESC] award/one_time_award без комментария -> разовое зачисление")
+            return "разовое зачисление"
+        logger.info(f"[ACTION_DESC] award/{subtype} -> {subtype}")
         return subtype
 
     if entry.operation_subtype:
-        return ACTION_ICONS.get(entry.operation_subtype, entry.operation_subtype)
+        result = ACTION_ICONS.get(entry.operation_subtype, entry.operation_subtype)
+        logger.info("[ACTION_DESC] default subtype=%s -> %s", entry.operation_subtype, result)
+        return result
+    logger.info("[ACTION_DESC] no subtype -> None")
     return None
 
 
@@ -86,6 +122,9 @@ def _group_entries_by_source(entries):
     """
     Группирует записи по source_id для отображения связанных операций.
     Возвращает список кортежей (main_entry, related_entries).
+
+    Если налог (tax) есть, но связанный трансфер не попал в выборку,
+    налог не показывается (так как бессмысленен без основного трансфера).
     """
     # Словарь для группировки: source_id -> список записей
     grouped = {}
@@ -117,10 +156,15 @@ def _group_entries_by_source(entries):
             for t in related:
                 processed_entries.add(id(t))
 
-        # Оставшиеся налоги (без перевода) добавляем как отдельные
-        for tax in taxes:
-            if id(tax) not in processed_entries:
-                result.append((tax, []))
+        # Если есть налоги, но нет трансферов в выборке - пропускаем их
+        # (трансфер не попал в лимит, а налог без него бессмысленен)
+        if taxes and not transfers:
+            logger.info(
+                "[GROUP] Skipping tax entries without transfer for source_id=%s "
+                "(transfer not in selection)",
+                _source_id,
+            )
+            for tax in taxes:
                 processed_entries.add(id(tax))
 
         # Остальные записи (реакции и т.д.) добавляем по отдельности
@@ -154,6 +198,8 @@ def render_personal_stats(
     24.02 14:30 💎 +50 от @username
     24.02 12:00 💸 -100 перевод
     """
+    logger.info("[RENDER] Starting render for user_id=%s, entries_count=%s", current_user_id, len(dto.entries) if dto.entries else 0)
+
     header = ["📊 Выписка по балансу", f"💰 Баланс: {dto.balance}", ""]
 
     lines: list[str] = header
@@ -165,7 +211,17 @@ def render_personal_stats(
     # Группируем записи по source_id
     grouped = _group_entries_by_source(dto.entries)
 
+    logger.info("[RENDER] Grouped entries: %s groups", len(grouped))
+
     for main_entry, _related_entries in grouped:
+        # Логируем каждую запись для отладки
+        logger.info(
+            "[RENDER] Entry: type=%s, subtype=%s, amount=%s, meta=%s",
+            main_entry.operation_type,
+            main_entry.operation_subtype,
+            main_entry.amount,
+            main_entry.meta,
+        )
         # Конвертируем время в локальный часовой пояс пользователя
         local_dt = _convert_to_timezone(main_entry.created_at, user_timezone)
 
@@ -237,9 +293,9 @@ def render_personal_stats(
         # Инициатор (если не сам пользователь)
         initiator = _format_initiator(main_entry, current_user_id or main_entry.user_id)
 
-        # Для бонуса добавляем описание
+        # Для бонуса и award добавляем описание
         action_desc = None
-        if main_entry.operation_type == "bonus":
+        if main_entry.operation_type in ("bonus", "award"):
             action_desc = _get_action_description(main_entry)
 
         # Формируем строку

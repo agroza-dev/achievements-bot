@@ -118,7 +118,7 @@ class PeriodicAwardConfig:
 
     # Cron-выражение для запуска producer (создания batch)
     # Пятница, 18:00 (окно зачисления 18:00-19:00)
-    CRON_EXPRESSION: str = "33 0 * * 3"
+    CRON_EXPRESSION: str = "00 22 * * 2"
 
     # Размер батча для обработки за один проход worker
     BATCH_SIZE: int = 50
