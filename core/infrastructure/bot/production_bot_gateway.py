@@ -1,10 +1,14 @@
 """Production реализация BotGateway с использованием telegram.Bot."""
 
+import logging
 from typing import Any
 
 from telegram import Bot
+from telegram.error import Forbidden, TelegramError
 
 from core.ports.bot_gateway import BotGateway
+
+logger = logging.getLogger(__name__)
 
 
 class ProductionBotGateway(BotGateway):
@@ -25,13 +29,20 @@ class ProductionBotGateway(BotGateway):
 
     async def send_message(self, chat_id: int, text: str, **kwargs: Any) -> dict[str, Any]:
         """Отправить сообщение в чат."""
-        message = await self._bot.send_message(chat_id=chat_id, text=text, **kwargs)
-        return {
-            "message_id": message.message_id,
-            "chat_id": message.chat_id,
-            "text": message.text,
-            "from_user_id": message.from_user.id if message.from_user else None,
-        }
+        try:
+            message = await self._bot.send_message(chat_id=chat_id, text=text, **kwargs)
+            return {
+                "message_id": message.message_id,
+                "chat_id": message.chat_id,
+                "text": message.text,
+                "from_user_id": message.from_user.id if message.from_user else None,
+            }
+        except Forbidden as e:
+            logger.warning(f"Bot is forbidden to send message to user {chat_id}: {e}")
+            raise
+        except TelegramError as e:
+            logger.error(f"Failed to send message to {chat_id}: {e}")
+            raise
 
     async def set_message_reaction(
         self,

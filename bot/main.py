@@ -22,6 +22,7 @@ from bot.handlers.leaderboard_handler import leaderboard_callback_handler, leade
 from bot.handlers.left_chat_member_handler import left_chat_member_handler
 from bot.handlers.message_metadata_handler import message_metadata_handler
 from bot.handlers.new_chat_title_handler import new_chat_title_handler
+from bot.handlers.notifications_handler import notifications_handler
 from bot.handlers.personal_stats_handler import personal_stats_callback_handler, personal_stats_handler
 from bot.handlers.reaction_handler import reaction_handler
 from bot.handlers.start_handler import start_handler
@@ -197,6 +198,7 @@ def main():
         ),
         group=2,
     )
+    application.add_handler(CommandHandler("notifications", notifications_handler), group=2)
 
     application.add_handler(MessageHandler(filters.TEXT, transfer_handler), group=3)
 

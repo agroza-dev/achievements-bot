@@ -1,7 +1,7 @@
 """
-Репозиторий для работы с настройками чатов (v2).
+Репозиторий для работы с настройками пользователей.
 
-Работает с таблицей chat_settings.
+Работает с таблицей user_settings.
 """
 
 import json
@@ -10,144 +10,132 @@ from typing import Any
 
 import asyncpg
 
-from core.dto.chat_settings_dto import ChatSettingsDTO, ChatSettingsHistoryDTO
+from core.dto.user_settings_dto import UserSettingsDTO, UserSettingsHistoryDTO
 
 logger = logging.getLogger(__name__)
 
 
-class ChatSettingsRepository:
+class UserSettingsRepository:
     """
-    Репозиторий для работы с настройками чата.
+    Репозиторий для работы с настройками пользователя.
 
-    Использует отдельную таблицу вместо JSONB поля.
+    Использует отдельную таблицу для настроек.
     """
 
     def __init__(self, conn: asyncpg.Connection):
         self.conn = conn
 
-    async def get_settings(self, chat_id: int) -> ChatSettingsDTO | None:
+    async def get_settings(self, user_id: int) -> UserSettingsDTO | None:
         """
-        Получить настройки чата.
+        Получить настройки пользователя.
 
         Args:
-            chat_id: Внутренний ID чата
+            user_id: Внутренний ID пользователя
 
         Returns:
-            ChatSettingsDTO или None если настройки не найдены
+            UserSettingsDTO или None если настройки не найдены
         """
         query = """
             SELECT
-                chat_id,
-                periodic_award_enabled,
-                periodic_award_amount,
-                tax_enabled,
-                tax_rate,
+                user_id,
+                notifications_enabled,
                 created_at,
                 updated_at,
                 updated_by_user_id
-            FROM chat_settings
-            WHERE chat_id = $1
+            FROM user_settings
+            WHERE user_id = $1
         """
-        record = await self.conn.fetchrow(query, chat_id)
+        record = await self.conn.fetchrow(query, user_id)
         return self._map_settings(record) if record else None
 
-    async def get_settings_sync(self, chat_id: int) -> ChatSettingsDTO | None:
+    async def get_settings_sync(self, user_id: int) -> UserSettingsDTO | None:
         """
-        Получить настройки чата (синхронная версия).
+        Получить настройки пользователя (синхронная версия).
 
         Args:
-            chat_id: Внутренний ID чата
+            user_id: Внутренний ID пользователя
 
         Returns:
-            ChatSettingsDTO или None если настройки не найдены
+            UserSettingsDTO или None если настройки не найдены
         """
         query = """
             SELECT
-                chat_id,
-                periodic_award_enabled,
-                periodic_award_amount,
-                tax_enabled,
-                tax_rate,
+                user_id,
+                notifications_enabled,
                 created_at,
                 updated_at,
                 updated_by_user_id
-            FROM chat_settings
-            WHERE chat_id = $1
+            FROM user_settings
+            WHERE user_id = $1
         """
-        record = await self.conn.fetchrow(query, chat_id)
+        record = await self.conn.fetchrow(query, user_id)
         return self._map_settings(record) if record else None
 
-    async def get_or_create_settings(self, chat_id: int) -> ChatSettingsDTO:
+    async def get_or_create_settings(self, user_id: int) -> UserSettingsDTO:
         """
-        Получить или создать настройки чата.
+        Получить или создать настройки пользователя.
 
         Args:
-            chat_id: Внутренний ID чата
+            user_id: Внутренний ID пользователя
 
         Returns:
-            ChatSettingsDTO
+            UserSettingsDTO
         """
         # Пробуем получить
-        settings = await self.get_settings(chat_id)
+        settings = await self.get_settings(user_id)
         if settings:
             return settings
 
         # Создаём новые
         query = """
-            INSERT INTO chat_settings (chat_id)
+            INSERT INTO user_settings (user_id)
             VALUES ($1)
-            ON CONFLICT (chat_id) DO NOTHING
+            ON CONFLICT (user_id) DO NOTHING
             RETURNING
-                chat_id,
-                periodic_award_enabled,
-                periodic_award_amount,
-                tax_enabled,
-                tax_rate,
+                user_id,
+                notifications_enabled,
                 created_at,
                 updated_at,
                 updated_by_user_id
         """
-        record = await self.conn.fetchrow(query, chat_id)
+        record = await self.conn.fetchrow(query, user_id)
         return self._map_settings(record)
 
     async def update_settings(
         self,
-        chat_id: int,
+        user_id: int,
         **kwargs: Any,
-    ) -> ChatSettingsDTO | None:
+    ) -> UserSettingsDTO | None:
         """
-        Обновить настройки чата.
+        Обновить настройки пользователя.
 
         Args:
-            chat_id: Внутренний ID чата
-            **kwargs: Поля для обновления (например: periodic_award_enabled=True)
+            user_id: Внутренний ID пользователя
+            **kwargs: Поля для обновления (например: notifications_enabled=True)
 
         Returns:
-            Обновлённые ChatSettingsDTO или None
+            Обновлённые UserSettingsDTO или None
         """
         if not kwargs:
-            return await self.get_settings(chat_id)
+            return await self.get_settings(user_id)
 
         # Фильтруем разрешённые поля
         allowed_fields = {
-            'periodic_award_enabled',
-            'periodic_award_amount',
-            'tax_enabled',
-            'tax_rate',
+            'notifications_enabled',
             'updated_by_user_id',
         }
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed_fields}
 
         if not filtered_kwargs:
             logger.warning(f"Попытка обновить недопустимые поля: {kwargs.keys()}")
-            return await self.get_settings(chat_id)
+            return await self.get_settings(user_id)
 
         # Логируем изменения
-        await self._log_changes(chat_id, filtered_kwargs)
+        await self._log_changes(user_id, filtered_kwargs)
 
         # Строим динамический запрос
         set_clauses = []
-        values = [chat_id]
+        values = [user_id]
         param_idx = 2
 
         for field_name, value in filtered_kwargs.items():
@@ -156,15 +144,12 @@ class ChatSettingsRepository:
             param_idx += 1
 
         query = f"""
-            UPDATE chat_settings
+            UPDATE user_settings
             SET {', '.join(set_clauses)}
-            WHERE chat_id = $1
+            WHERE user_id = $1
             RETURNING
-                chat_id,
-                periodic_award_enabled,
-                periodic_award_amount,
-                tax_enabled,
-                tax_rate,
+                user_id,
+                notifications_enabled,
                 created_at,
                 updated_at,
                 updated_by_user_id
@@ -174,7 +159,7 @@ class ChatSettingsRepository:
 
     async def _log_changes(
         self,
-        chat_id: int,
+        user_id: int,
         new_values: dict[str, Any],
         changed_by_user_id: int | None = None,
     ) -> None:
@@ -182,12 +167,12 @@ class ChatSettingsRepository:
         Записать историю изменений.
 
         Args:
-            chat_id: Внутренний ID чата
+            user_id: Внутренний ID пользователя
             new_values: Новые значения полей
             changed_by_user_id: Кто изменил
         """
         # Получаем текущие значения
-        current = await self.get_settings(chat_id)
+        current = await self.get_settings(user_id)
 
         for field_name, new_value in new_values.items():
             old_value = getattr(current, field_name, None) if current else None
@@ -197,13 +182,13 @@ class ChatSettingsRepository:
                 continue
 
             query = """
-                INSERT INTO chat_settings_history
-                    (chat_id, setting_name, old_value, new_value, changed_by_user_id)
+                INSERT INTO user_settings_history
+                    (user_id, setting_name, old_value, new_value, changed_by_user_id)
                 VALUES ($1, $2, $3, $4, $5)
             """
             await self.conn.execute(
                 query,
-                chat_id,
+                user_id,
                 field_name,
                 self._to_jsonb(old_value),
                 self._to_jsonb(new_value),
@@ -218,14 +203,11 @@ class ChatSettingsRepository:
         return json.dumps({"value": value})
 
     @staticmethod
-    def _map_settings(record: asyncpg.Record) -> ChatSettingsDTO:
+    def _map_settings(record: asyncpg.Record) -> UserSettingsDTO:
         """Преобразовать запись БД в DTO."""
-        return ChatSettingsDTO(
-            chat_id=record["chat_id"],
-            periodic_award_enabled=record["periodic_award_enabled"],
-            periodic_award_amount=record["periodic_award_amount"],
-            tax_enabled=record["tax_enabled"],
-            tax_rate=float(record["tax_rate"]),
+        return UserSettingsDTO(
+            user_id=record["user_id"],
+            notifications_enabled=record["notifications_enabled"],
             created_at=record["created_at"],
             updated_at=record["updated_at"],
             updated_by_user_id=record["updated_by_user_id"],
@@ -233,15 +215,15 @@ class ChatSettingsRepository:
 
     async def get_history(
         self,
-        chat_id: int,
+        user_id: int,
         limit: int = 50,
         offset: int = 0,
-    ) -> list[ChatSettingsHistoryDTO]:
+    ) -> list[UserSettingsHistoryDTO]:
         """
-        Получить историю изменений настроек чата.
+        Получить историю изменений настроек пользователя.
 
         Args:
-            chat_id: Внутренний ID чата
+            user_id: Внутренний ID пользователя
             limit: Максимальное количество записей
             offset: Смещение
 
@@ -251,26 +233,26 @@ class ChatSettingsRepository:
         query = """
             SELECT
                 id,
-                chat_id,
+                user_id,
                 setting_name,
                 old_value,
                 new_value,
                 changed_by_user_id,
                 changed_at
-            FROM chat_settings_history
-            WHERE chat_id = $1
+            FROM user_settings_history
+            WHERE user_id = $1
             ORDER BY changed_at DESC
             LIMIT $2 OFFSET $3
         """
-        rows = await self.conn.fetch(query, chat_id, limit, offset)
+        rows = await self.conn.fetch(query, user_id, limit, offset)
         return [self._map_history(row) for row in rows]
 
     @staticmethod
-    def _map_history(record: asyncpg.Record) -> ChatSettingsHistoryDTO:
+    def _map_history(record: asyncpg.Record) -> UserSettingsHistoryDTO:
         """Преобразовать запись БД в DTO истории."""
-        return ChatSettingsHistoryDTO(
+        return UserSettingsHistoryDTO(
             id=record["id"],
-            chat_id=record["chat_id"],
+            user_id=record["user_id"],
             setting_name=record["setting_name"],
             old_value=record["old_value"],
             new_value=record["new_value"],

@@ -2,6 +2,7 @@ import logging
 
 from telegram import Message, Update
 from telegram.constants import ReactionEmoji
+from telegram.error import Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
 from core.application.transfers.transfer_result import TransferStatus
@@ -12,6 +13,82 @@ from core.ports.bot_gateway import BotGateway
 from utils.logger import prettify
 
 logger = logging.getLogger(__name__)
+
+# Текст подсказки об управлении уведомлениями
+NOTIFICATIONS_HINT = "\n\nℹ️ Выкл уведомления: /notifications off"
+
+
+async def _get_user_notifications_enabled(container: Container, user_id: int, tg_id: int) -> bool:
+    """Проверяет, включены ли уведомления для пользователя."""
+    try:
+        logger.info(f"[SETTINGS] Checking notifications settings for user_id={user_id}, tg_id={tg_id}")
+        use_case = container.get_user_settings_use_case()
+        logger.info(f"[SETTINGS] Got use_case, calling execute for user_id={user_id}")
+        settings = await use_case.execute(user_id=user_id)
+        logger.info(f"[SETTINGS] Got settings for user_id={user_id}: enabled={settings.notifications.enabled}")
+        return settings.notifications.enabled
+    except Exception as e:
+        logger.exception(f"[SETTINGS] Failed to get user settings for user_id={user_id}, tg_id={tg_id}: {e}")
+        # По умолчанию уведомления включены
+        return True
+
+
+async def _send_notification(
+    bot_gateway: BotGateway,
+    container: Container,
+    ctx: BotContextDTO,
+    text: str,
+    notification_type: str,
+) -> None:
+    """
+    Отправить уведомление пользователю.
+
+    Если уведомления выключены, сообщение не отправляется.
+    """
+    logger.info(f"[NOTIFICATION] Start sending {notification_type} to user_id={ctx.user.id}, tg_id={ctx.user.tg_id}")
+
+    # Проверяем настройки уведомлений
+    logger.info(f"[NOTIFICATION] Calling _get_user_notifications_enabled for user_id={ctx.user.id}")
+    notifications_enabled = await _get_user_notifications_enabled(
+        container, ctx.user.id, ctx.user.tg_id
+    )
+    logger.info(f"[NOTIFICATION] Got notifications_enabled={notifications_enabled} for user_id={ctx.user.id}")
+
+    logger.info(
+        f"Sending {notification_type} transfer notification to user_id={ctx.user.id}, "
+        f"tg_id={ctx.user.tg_id}, notifications_enabled={notifications_enabled}"
+    )
+
+    # Если уведомления выключены, не отправляем сообщение вообще
+    if not notifications_enabled:
+        logger.info(
+            f"[NOTIFICATION] Skipping {notification_type} notification for user_id={ctx.user.id}, "
+            f"tg_id={ctx.user.tg_id} - notifications disabled"
+        )
+        return
+
+    logger.info(f"[NOTIFICATION] notifications_enabled={notifications_enabled}, proceeding to send message")
+
+    try:
+        logger.info(f"[NOTIFICATION] Calling bot_gateway.send_message for {notification_type}")
+        await bot_gateway.send_message(
+            chat_id=ctx.user.tg_id,
+            text=text,
+        )
+        logger.info(
+            f"[NOTIFICATION] Successfully sent {notification_type} notification to user_id={ctx.user.id}, "
+            f"tg_id={ctx.user.tg_id}"
+        )
+    except Forbidden:
+        logger.warning(
+            f"[NOTIFICATION] Bot is forbidden to send {notification_type} notification to "
+            f"user_id={ctx.user.id}, tg_id={ctx.user.tg_id}"
+        )
+    except TelegramError as e:
+        logger.error(
+            f"[NOTIFICATION] Failed to send {notification_type} notification to "
+            f"user_id={ctx.user.id}, tg_id={ctx.user.tg_id}: {e}"
+        )
 
 
 async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -25,6 +102,13 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 update.message.message_id if update.message else None,
                 update.effective_chat.title if update.effective_chat else None,
                 update.effective_user.username if update.effective_user else None)
+
+    # Логируем контекст для отладки
+    if ctx:
+        logger.info(f"Bot context resolved: user.id={ctx.user.id}, user.tg_id={ctx.user.tg_id}, "
+                    f"user.username={ctx.user.username}, chat.id={ctx.chat.id}")
+    else:
+        logger.warning(f"Bot context is None for user_id={user_id}")
 
     chat = update.effective_chat
     if chat.type == "private":
@@ -68,8 +152,11 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         recipient_display = f"@{transfer_result.recipient_username}" if transfer_result.recipient_username else "пользователю"
         total_deducted = (transfer_result.amount or 0) + (transfer_result.tax or 0)
-        await bot_gateway.send_message(
-            chat_id=ctx.user.tg_id,
+
+        await _send_notification(
+            bot_gateway=bot_gateway,
+            container=container,
+            ctx=ctx,
             text=(
                 f"✅ Трансфер успешно выполнен!\n\n"
                 f"Получатель: {recipient_display}\n"
@@ -77,15 +164,20 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Налог: {transfer_result.tax or 0}\n"
                 f"Всего списано: {total_deducted}\n"
                 f"Ваш баланс: {transfer_result.initiator_balance or 0}"
+                f"{NOTIFICATIONS_HINT}"
             ),
+            notification_type="SUCCESS",
         )
 
     elif transfer_result.status is TransferStatus.FORBIDDEN:
         await bot_gateway.set_message_reaction(message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE)
-        await bot_gateway.send_message(
-            chat_id=ctx.user.tg_id,
+
+        await _send_notification(
+            bot_gateway=bot_gateway,
+            container=container,
+            ctx=ctx,
             text=transfer_result.message or "Запрещённое действие",
-            disable_notification=True,
+            notification_type="FORBIDDEN",
         )
 
     elif transfer_result.status is TransferStatus.INSUFFICIENT_FUNDS:
@@ -94,8 +186,11 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         recipient_display = f"@{transfer_result.recipient_username}" if transfer_result.recipient_username else "пользователю"
         missing = (transfer_result.required_amount or 0) - (transfer_result.initiator_balance or 0)
-        await bot_gateway.send_message(
-            chat_id=ctx.user.tg_id,
+
+        await _send_notification(
+            bot_gateway=bot_gateway,
+            container=container,
+            ctx=ctx,
             text=(
                 f"❌ Недостаточный баланс для трансфера\n\n"
                 f"Получатель: {recipient_display}\n"
@@ -103,7 +198,9 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Включая налог: {transfer_result.tax or 0}\n"
                 f"Ваш текущий баланс: {transfer_result.initiator_balance or 0}\n"
                 f"Не хватает: {missing}"
+                f"{NOTIFICATIONS_HINT}"
             ),
+            notification_type="INSUFFICIENT_FUNDS",
         )
 
     elif transfer_result.status is TransferStatus.QUIET_STOP:
@@ -121,9 +218,13 @@ async def transfer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await bot_gateway.set_message_reaction(
             message.chat_id, message.message_id, reaction=ReactionEmoji.CLOWN_FACE
         )
-        await bot_gateway.send_message(
-            chat_id=ctx.user.tg_id,
+
+        await _send_notification(
+            bot_gateway=bot_gateway,
+            container=container,
+            ctx=ctx,
             text="Неверный формат трансфера",
+            notification_type="INVALID",
         )
 
 

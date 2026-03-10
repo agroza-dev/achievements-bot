@@ -187,3 +187,24 @@ class Container:
         return GetUserChatsUseCase(
             uow_factory=self.get_uow_factory(),
         )
+
+    def get_user_settings_use_case(self):
+        """Создать use case для получения настроек пользователя."""
+        from core.application.settings.get_user_settings import GetUserSettingsUseCase
+        return GetUserSettingsUseCase(
+            uow_factory=self.get_uow_factory(),
+        )
+
+    def get_update_user_notifications_use_case(self):
+        """Создать use case для обновления настроек уведомлений пользователя."""
+        from core.application.settings.update_user_notifications import UpdateUserNotificationsUseCase
+        return UpdateUserNotificationsUseCase(
+            uow_factory=self.get_uow_factory(),
+        )
+
+    def get_get_or_create_user_use_case(self):
+        """Создать use case для получения или создания пользователя по tg_id."""
+        from core.application.user.get_or_create_user import GetOrCreateUserUseCase
+        return GetOrCreateUserUseCase(
+            uow_factory=self.get_uow_factory(),
+        )
