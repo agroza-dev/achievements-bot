@@ -116,7 +116,7 @@ def _get_message_kind(message: Message) -> str:
         return "venue"
 
     # 5. Fallback
-    return "unknown" # TODO - нужно отслеживать событие, когда группа превращается в супер группу, чтобы не терять связь
+    return "unknown"
 
 def _detect_media_type(message: Message) -> str:
     if message.photo:

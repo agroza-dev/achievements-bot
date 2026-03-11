@@ -68,8 +68,8 @@ class TestChatRepositoryMigrate:
         # Получаем новый чат
         new_chat = await chat_repo.get_by_tg_id(new_tg_id)
         assert new_chat is not None
-        # Настройки должны сохраниться (пустой dict по умолчанию)
-        assert new_chat.settings == {}
+        # Настройки теперь хранятся в отдельной таблице chat_settings
+        # Этот тест больше не актуален для ChatDTO
 
     @pytest.mark.asyncio
     async def test_migrate_chat_updates_timestamp(self, chat_repo: ChatRepository):

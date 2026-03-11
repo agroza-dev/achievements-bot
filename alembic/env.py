@@ -25,12 +25,12 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Construct the database URL from settings
-
-encoded_password = quote(settings.db.password, safe='')
-database_url = f"postgresql://{settings.db.login}:{encoded_password}@{settings.db.host}:{settings.db.port}/{settings.db.name}"
-
-# Set the sqlalchemy.url in the config
-config.set_main_option('sqlalchemy.url', database_url.replace('%', '%%'))
+# Only if sqlalchemy.url is not already set (e.g., from tests)
+if not config.get_main_option('sqlalchemy.url'):
+    encoded_password = quote(settings.db.password, safe='')
+    database_url = f"postgresql://{settings.db.login}:{encoded_password}@{settings.db.host}:{settings.db.port}/{settings.db.name}"
+    # Set the sqlalchemy.url in the config
+    config.set_main_option('sqlalchemy.url', database_url.replace('%', '%%'))
 
 # Add your model's MetaData object here for 'autogenerate' support
 # This will be updated when we create the models
@@ -44,6 +44,9 @@ from core.models import (  # noqa: E402, F401
     user_model,
 )
 from core.models.metadata import metadata  # noqa: E402
+
+# Import models for new tables (chat_settings, user_settings, award_batches)
+# These are defined in migrations, not in models yet
 
 target_metadata = metadata
 

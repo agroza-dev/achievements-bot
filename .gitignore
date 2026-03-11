@@ -5,8 +5,11 @@
 .pytest_cache
 var/log/*.log*
 var/db/persistence.pkl
+var/scheduler/*.json
 .env
 project_file_structure.txt
 db_helper.pgsql
 /.vscode/settings.json
 /.kilocode/
+/.qwen/
+/docs

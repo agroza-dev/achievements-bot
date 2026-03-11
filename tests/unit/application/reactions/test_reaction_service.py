@@ -84,9 +84,8 @@ def ctx():
             id=1,
             tg_id=100,
             title="Test Chat",
-            settings='{}',
+            type="group",
             is_active=True,
-            type='',
             created_at=datetime.datetime.now(),
             updated_at=datetime.datetime.now()
         ),

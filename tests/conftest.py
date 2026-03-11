@@ -87,7 +87,9 @@ def applied_db(test_settings: Settings) -> Settings:
         f"postgresql://{test_settings.db.login}:{test_settings.db.password}"
         f"@{test_settings.db.host}:{test_settings.db.port}/{test_settings.db.name}"
     )
+    print(f"\n=== Applying migrations to: {db_url} ===")
     apply_migrations(db_url)
+    print("=== Migrations completed ===\n")
 
     return test_settings
 

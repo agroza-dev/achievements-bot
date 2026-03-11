@@ -17,46 +17,17 @@ class TestChatPeriodicAwardSettings:
     def test_default_values(self):
         """Проверка значений по умолчанию."""
         settings = ChatPeriodicAwardSettings()
-        assert settings.enabled is False
-        assert settings.schedule_type == "weekly"
-        assert settings.cron_expression is None
-        assert settings.amount == 50
-        assert settings.timezone == "Europe/Moscow"
+        assert settings.enabled is True
+        assert settings.amount is None
 
     def test_custom_values(self):
         """Проверка установки кастомных значений."""
         settings = ChatPeriodicAwardSettings(
-            enabled=True,
-            schedule_type="daily",
+            enabled=False,
             amount=100,
-            timezone="UTC",
         )
-        assert settings.enabled is True
-        assert settings.schedule_type == "daily"
+        assert settings.enabled is False
         assert settings.amount == 100
-        assert settings.timezone == "UTC"
-
-    def test_get_cron_expression_daily(self):
-        """Проверка генерации cron для daily."""
-        settings = ChatPeriodicAwardSettings(schedule_type="daily")
-        assert settings.get_cron_expression() == "0 1 * * *"
-
-    def test_get_cron_expression_weekly(self):
-        """Проверка генерации cron для weekly."""
-        settings = ChatPeriodicAwardSettings(schedule_type="weekly")
-        assert settings.get_cron_expression() == "0 1 * * 1"
-
-    def test_get_cron_expression_monthly(self):
-        """Проверка генерации cron для monthly."""
-        settings = ChatPeriodicAwardSettings(schedule_type="monthly")
-        assert settings.get_cron_expression() == "0 1 1 * *"
-
-    def test_custom_cron_expression(self):
-        """Проверка кастомного cron-выражения."""
-        settings = ChatPeriodicAwardSettings(
-            cron_expression="*/30 * * * *"
-        )
-        assert settings.get_cron_expression() == "*/30 * * * *"
 
     def test_amount_validation_positive(self):
         """Проверка валидации amount (положительные значения)."""
@@ -76,11 +47,6 @@ class TestChatPeriodicAwardSettings:
         with pytest.raises(ValueError):
             ChatPeriodicAwardSettings(amount=10001)
 
-    def test_invalid_schedule_type(self):
-        """Проверка недопустимого типа расписания."""
-        with pytest.raises(ValueError):
-            ChatPeriodicAwardSettings(schedule_type="invalid")  # type: ignore[arg-type]
-
 
 class TestChatTaxSettings:
     """Тесты для настроек налога."""
@@ -90,18 +56,15 @@ class TestChatTaxSettings:
         settings = ChatTaxSettings()
         assert settings.enabled is False
         assert settings.rate == 0.0
-        assert settings.collect_to_user_id is None
 
     def test_custom_values(self):
         """Проверка установки кастомных значений."""
         settings = ChatTaxSettings(
             enabled=True,
             rate=0.15,
-            collect_to_user_id=12345,
         )
         assert settings.enabled is True
         assert settings.rate == 0.15
-        assert settings.collect_to_user_id == 12345
 
     def test_rate_validation_zero(self):
         """Проверка валидации rate (ноль)."""
@@ -130,7 +93,8 @@ class TestChatSettings:
     def test_empty_settings(self):
         """Проверка создания пустых настроек."""
         settings = ChatSettings.empty()
-        assert settings.periodic_award.enabled is False
+        assert settings.periodic_award.enabled is True
+        assert settings.periodic_award.amount is None
         assert settings.tax.enabled is False
 
     def test_default_initialization(self):
@@ -143,7 +107,7 @@ class TestChatSettings:
         """Проверка кастомной инициализации."""
         settings = ChatSettings(
             periodic_award=ChatPeriodicAwardSettings(
-                enabled=True,
+                enabled=False,
                 amount=200,
             ),
             tax=ChatTaxSettings(
@@ -151,7 +115,7 @@ class TestChatSettings:
                 rate=0.2,
             ),
         )
-        assert settings.periodic_award.enabled is True
+        assert settings.periodic_award.enabled is False
         assert settings.periodic_award.amount == 200
         assert settings.tax.enabled is True
         assert settings.tax.rate == 0.2
@@ -162,22 +126,21 @@ class TestChatSettings:
         modified = original.model_copy(
             update={
                 "periodic_award": original.periodic_award.model_copy(
-                    update={"enabled": True, "amount": 150}
+                    update={"enabled": False, "amount": 150}
                 )
             }
         )
-        assert original.periodic_award.enabled is False
-        assert original.periodic_award.amount == 50
-        assert modified.periodic_award.enabled is True
+        assert original.periodic_award.enabled is True
+        assert original.periodic_award.amount is None
+        assert modified.periodic_award.enabled is False
         assert modified.periodic_award.amount == 150
 
     def test_serialization_to_json(self):
         """Проверка сериализации в JSON."""
         settings = ChatSettings(
             periodic_award=ChatPeriodicAwardSettings(
-                enabled=True,
+                enabled=False,
                 amount=100,
-                schedule_type="daily",
             )
         )
         json_str = settings.to_json()
@@ -190,9 +153,7 @@ class TestChatSettings:
         {
             "periodic_award": {
                 "enabled": true,
-                "amount": 75,
-                "schedule_type": "monthly",
-                "timezone": "UTC"
+                "amount": 75
             },
             "tax": {
                 "enabled": false,
@@ -203,17 +164,15 @@ class TestChatSettings:
         settings = ChatSettings.from_json(json_str)
         assert settings.periodic_award.enabled is True
         assert settings.periodic_award.amount == 75
-        assert settings.periodic_award.schedule_type == "monthly"
-        assert settings.periodic_award.timezone == "UTC"
 
     def test_serialization_to_dict(self):
         """Проверка сериализации в dict."""
         settings = ChatSettings(
-            periodic_award=ChatPeriodicAwardSettings(enabled=True)
+            periodic_award=ChatPeriodicAwardSettings(enabled=False)
         )
         data = settings.to_dict()
         assert isinstance(data, dict)
-        assert data["periodic_award"]["enabled"] is True
+        assert data["periodic_award"]["enabled"] is False
 
     def test_deserialization_from_dict(self):
         """Проверка десериализации из dict."""
