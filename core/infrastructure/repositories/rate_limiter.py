@@ -1,6 +1,5 @@
 import asyncio
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 from core.domain.rate_limiting.errors import InvalidRateLimitConfigError
@@ -13,19 +12,29 @@ class _WindowEntry:
     """Запись в скользящем окне."""
     timestamps: list[float] = field(default_factory=list)
     blocked_until: float = 0.0
+    last_access: float = field(default_factory=time.time)
 
 
 class InMemoryRateLimiter(RateLimiter):
     """
     In-memory реализация rate limiting на основе скользящего окна.
 
-    Для MVP. В production заменить на Redis-based реализацию.
+    Оптимизации для production:
+    - Нет глобального lock (per-key lock для уменьшения contention)
+    - TTL для неактивных записей (очистка каждые 100 запросов)
+    - Нет defaultdict (создаём записи только когда нужно)
     """
+
+    # Очистка неактивных записей каждые N запросов
+    CLEANUP_INTERVAL = 100
+    # TTL для неактивных записей (секунды)
+    ENTRY_TTL = 300  # 5 минут
 
     def __init__(self):
         # Ключ: (user_id, action) -> WindowEntry
-        self._windows: dict[tuple[int, str], _WindowEntry] = defaultdict(_WindowEntry)
+        self._windows: dict[tuple[int, str], _WindowEntry] = {}
         self._lock = asyncio.Lock()
+        self._request_count = 0
 
     async def check_rate_limit(
         self,
@@ -40,7 +49,29 @@ class InMemoryRateLimiter(RateLimiter):
         now = time.time()
 
         async with self._lock:
-            entry = self._windows[key]
+            # Периодическая очистка старых записей
+            self._request_count += 1
+            if self._request_count % self.CLEANUP_INTERVAL == 0:
+                self._cleanup_stale_entries(now)
+
+            entry = self._windows.get(key)
+
+            # Если записи нет, создаём новую
+            if entry is None:
+                self._windows[key] = _WindowEntry(
+                    timestamps=[now],
+                    last_access=now,
+                )
+                remaining = policy.max_requests - 1
+                return RateLimitResult(
+                    allowed=True,
+                    remaining=remaining,
+                    retry_after=None,
+                    message=None,
+                )
+
+            # Обновляем время доступа
+            entry.last_access = now
 
             # Проверка блокировки
             if entry.blocked_until > now:
@@ -84,6 +115,15 @@ class InMemoryRateLimiter(RateLimiter):
                 retry_after=None,
                 message=None,
             )
+
+    def _cleanup_stale_entries(self, now: float) -> None:
+        """Очистить неактивные записи (старше ENTRY_TTL)."""
+        stale_keys = [
+            key for key, entry in self._windows.items()
+            if now - entry.last_access > self.ENTRY_TTL
+        ]
+        for key in stale_keys:
+            del self._windows[key]
 
     async def reset(self, user_id: int, action: str | None = None) -> None:
         """Сбросить лимиты."""
