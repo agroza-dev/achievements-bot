@@ -10,7 +10,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-WELCOME_BONUS_AMOUNT = 100
+# TODO: нужно вынести это в конфиг
+WELCOME_BONUS_AMOUNT = 500
 
 
 class AwardWelcomeBonusUseCase:

@@ -111,7 +111,7 @@ class PeriodicAwardConfig:
     """
 
     # Базовая сумма зачисления для всех чатов
-    DEFAULT_AMOUNT: int = 50
+    DEFAULT_AMOUNT: int = 500
 
     # Часовой пояс для выполнения зачислений
     TIMEZONE: str = "Europe/Moscow"
