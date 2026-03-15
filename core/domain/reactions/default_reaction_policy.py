@@ -34,6 +34,7 @@ class DefaultReactionPolicy(ReactionPolicy):
             ReactionEmoji.ROLLING_ON_THE_FLOOR_LAUGHING,
             ReactionEmoji.GRINNING_FACE_WITH_ONE_LARGE_AND_ONE_SMALL_EYE,
             ReactionEmoji.TROPHY,
+            ReactionEmoji.RED_HEART,
         }:
             return ReactionKind.POSITIVE
         if emoji in {
