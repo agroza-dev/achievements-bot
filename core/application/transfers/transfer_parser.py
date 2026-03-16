@@ -15,10 +15,9 @@ class TransferParser:
         → token parser
         → confidence check
     """
-
+    # TODO: вынести в конфиг
     MAX_LENGTH = 160
-    MAX_AMOUNT = 10000
-    MIN_CONFIDENCE = 0.6
+    MAX_AMOUNT = 300
 
     TOKEN_RE = re.compile(r"@\w+|[+-]?\d+|\w+")
 
